@@ -8,9 +8,9 @@ tarix is designed to work as a compression filter for tar with the
 compression, but merely scans the tar archive as it passes through and
 writes out an index file.  Most compression formats do not allow easy,
 arbitrary seeking within them, so it is not planned to have tarix support
-invoking a compression program in the near future.  Gzip appears to have
-some ability for seeking within compressed files, but support for this is
-not planned for the 1.0 release, perhaps 2.0 will head down that path.
+invoking a compression program in the near future.  Gzip and bzip2 appear to
+have some ability for seeking within compressed files, but support for this
+is not planned for the 1.0 release; 2.0 will head down that path.
 
 Because of how tar invokes compress programs, options are generally accepted
 through environment variables.  For manual usage, however, tarix can accept
@@ -20,8 +20,8 @@ tarix's output format is geared for simplicity and ease of use in a recovery
 mode.  For those reasons, it is a simple text format.  The goal behind this
 is to allow tarix's indexes to be used from even a basic recovery disk. 
 Using tarix's indexes requires only grep, sed, dd, and tar for basic usage. 
-tarix does include a more streamlined program for fast extraction using the
-index without convoluted usage of grep, sed, and dd.
+tarix itself can use the index for fast extraction without convoluted usage
+of grep, sed, and dd.
 
 Currently tarix targets GNU tar archives.  It does currently try and support
 any of the fancier GNU tar extensions, such as sparse files and such,
@@ -31,7 +31,7 @@ file names, though it will probably barf on filenames more than 511 chars
 long.  It should also be able to handle standard POSIX archives.
 
 Do not put newlines in your filenames, it *WILL* break tarix's output
-format!
+format (and probably lots of other things too).
 
 It is unknown if it will work with other tar programs, but the author would
 be very interested to hear about success or failure with them.  If
@@ -41,3 +41,6 @@ provided to the author.
 
 tarix's format uses 32 bit unsigned integers to count 512 byte blocks, so it
 should be able to handle archives up to 2 terabytes.
+
+Web Page: http://sf.net/projects/xtar/
+Alternate download site: http://reprehensible.net/~cheetah/tarix/
