@@ -48,7 +48,7 @@ int p_mt_getpos(int fd, off64_t *offset)
 	#else
 		struct mtpos mt_pos;
 		mt_pos.mt_blkno = *offset;
-		ioctr = ioctl(fd, &mt_pos);
+		ioctr = ioctl(fd, MTIOCPOS, &mt_pos);
 		*offset = mt_pos.mt_blkno;
 	#endif
 	return ioctr;
