@@ -1,3 +1,6 @@
+0.0.4
+	* Vast improvement in restore speed by removing needless tell/seek calls
+
 0.0.3
 	* Enable use of magnetic tape
 	* Attempt at port to FreeBSD: compiles, but don't have hardware to test with
