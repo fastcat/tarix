@@ -19,7 +19,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/mtio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,8 +52,6 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
 	int gotheader = 0;
 	char passbuf[TARBLKSZ];
 	int index, tar;
-	struct mtop mt_op;
-	struct mtpos mt_pos;
 	
 	/* the basic idea:
 	 * read the index an entry at a time
@@ -83,25 +80,22 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
 	/* On tape devices and such, a tar archive very likely will not start at
 	 * offset 0, so we grab the base offset and use it for future seeks
 	 */
-	/* If we use the mt ioctls, we store offsets & stuff as block numbers */
+	/* If we use the mt method, we store offsets & stuff as block numbers */
 	if (use_mt)
 	{
 		/* for tapes there are 2 steps, first we set the block size, then we
 		 * query the position
 		 */
-		mt_op.mt_op = MTSETBLK;
-		mt_op.mt_count = TARBLKSZ;
-		if (ioctl(tar, MTIOCTOP, &mt_op) != 0)
+		if (p_mt_setblk(tar, TARBLKSZ) != 0)
 		{
-			perror("MTSETBLK 512");
+			perror("set tape block size = 512");
 			return 1;
 		}
-		if (ioctl(tar, MTIOCPOS, &mt_pos) != 0)
+		if (p_mt_getpos(tar, &baseoffset) != 0)
 		{
-			perror("MTIOCTPOS");
+			perror("tape get pos");
 			return 1;
 		}
-		baseoffset = mt_pos.mt_blkno;
 	}
 	else
 	{
@@ -155,11 +149,9 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
 						if (use_mt)
 						{
 							/* mt uses block based seeks! */
-							mt_op.mt_op = MTSEEK;
-							mt_op.mt_count = ioffset + baseoffset;
-							if (ioctl(tar, MTIOCTOP, &mt_op) != 0)
+							if (p_mt_setpos(tar, ioffset + baseoffset) != 0)
 							{
-								perror("MTIOCTOP seek");
+								perror("mt seek");
 								return 1;
 							}
 						}
