@@ -17,14 +17,10 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __TARIX_H__
-#define __TARIX_H__
+#include <stdio.h>
 
-#define TARIX_FMT_VERSION "0"
-#define TARIX_VERSION "0.0.1"
-#define TARIX_DEF_OUTFILE "out.tarix"
-
-int create_index(const char *argixfile, int pass_through);
-int extract_files(int argc, char *argv[], int firstarg);
-
-#endif /* __TARIX_H__ */
+int extract_files(int argc, char *argv[], int firstarg)
+{
+	fprintf(stderr, "extract_files is not supported yet\n");
+	return 1;
+}
