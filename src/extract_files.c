@@ -48,7 +48,7 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
 	int linelen;
 	char *iparse;
 	unsigned long ioffset, ilen;
-	off64_t baseoffset = 0, destoff;
+	off64_t baseoffset = 0, destoff, curpos;
 	int gotheader = 0;
 	char passbuf[TARBLKSZ];
 	int index, tar;
@@ -105,6 +105,8 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
 			return 1;
 		}
 	}
+	
+	curpos = baseoffset;
 
 	/* prep step: calculate string lengths of args only once */
 	arglens = calloc(argc - firstarg, sizeof(int));
@@ -146,22 +148,27 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
 					if (strncmp(argv[n], iparse, arglens[n-firstarg]) == 0)
 					{
 						/* seek to the record start and then pass the record through */
+						/* don't actually seek if we're already there */
 						if (use_mt)
 						{
 							/* mt uses block based seeks! */
-							if (p_mt_setpos(tar, ioffset + baseoffset) != 0)
-							{
-								perror("mt seek");
-								return 1;
+							if (curpos != ioffset + baseoffset) {
+								if (p_mt_setpos(tar, ioffset + baseoffset) != 0) {
+									perror("mt seek");
+									return 1;
+								}
+								curpos = ioffset + baseoffset;
 							}
 						}
 						else
 						{
 							destoff = (off64_t)ioffset * TARBLKSZ + baseoffset;
-							if (p_lseek64(tar, destoff, SEEK_SET) != destoff)
-							{
-								perror("lseek64 tarfile");
-								return 1;
+							if (curpos != destoff) {
+								if (p_lseek64(tar, destoff, SEEK_SET) != destoff) {
+									perror("lseek64 tarfile");
+									return 1;
+								}
+								curpos = destoff;
 							}
 						}
 						/* this destroys ilen, but that's ok since we're only gonna
@@ -174,6 +181,7 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
 								perror((n > 0) ? "partial tarfile read" : "read tarfile");
 								return 2;
 							}
+							curpos += use_mt ? 1 : TARBLKSZ;
 							if ((n = write(1, passbuf, TARBLKSZ)) < TARBLKSZ)
 							{
 								perror((n > 0) ? "partial tarfile write" : "write tarfile");
