@@ -1,0 +1,2 @@
+Some of the code in tarix is derrived from GNU tar, and the perl
+Archive::Tar module.
