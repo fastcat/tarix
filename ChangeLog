@@ -1,0 +1,8 @@
+0.0.2:
+	* Fixed index usage (I think?)
+	* Fixed Makefile bogosity
+
+0.0.1:
+	* First release
+	* Supports index creation
+	* Supposed to support index usage for extraction, but it's broken
