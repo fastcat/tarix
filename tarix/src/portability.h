@@ -25,6 +25,8 @@
 #define P_O_LARGEFILE 0
 #define p_lseek64 lseek
 typedef off_t off64_t;
+/* map linux st defines to fbsd mtio ones */
+#define MTSETBLK MTSETBSIZ
 
 #else
 
