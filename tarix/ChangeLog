@@ -1,3 +1,7 @@
+0.0.3
+	* Enable use of magnetic tape
+	* Attempt at port to FreeBSD: compiles, but don't have hardware to test with
+
 0.0.2:
 	* Fixed index usage (I think?)
 	* Fixed Makefile bogosity
