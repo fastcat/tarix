@@ -17,7 +17,7 @@ ${TARGET}: bin/.d ${OBJECTS}
 ${OBJECTS} ${DEPS}: obj/.d
 
 %/.d:
-	@mkdir $*
+	@mkdir -p $*
 	@touch $@
 
 obj/%.o: src/%.c
@@ -26,7 +26,7 @@ obj/%.o: src/%.c
 obj/%.d: src/%.c
 	${CC} ${CPPFLAGS} -MM $< | sed -e 's/^\(.*\)\.o[ :]*/obj\/\1.o obj\/\1.d : /' >$@
 
-install:
+install: all
 	install ${TARGET} ${INSTBASE}/bin
 
 clean:
@@ -35,4 +35,4 @@ clean:
 distclean: clean
 	rm -rf bin/
 
-include ${DEPS}
+-include ${DEPS}

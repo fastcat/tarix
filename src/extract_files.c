@@ -19,6 +19,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mtio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +36,7 @@ struct index_entry
 	char *filename;
 };
 
-int extract_files(const char *indexfile, const char *tarfile,
+int extract_files(const char *indexfile, const char *tarfile, int use_mt,
 		int argc, char *argv[], int firstarg)
 {
 	int *arglens;
@@ -52,6 +53,8 @@ int extract_files(const char *indexfile, const char *tarfile,
 	int gotheader = 0;
 	char passbuf[TARBLKSZ];
 	int index, tar;
+	struct mtop mt_op;
+	struct mtpos mt_pos;
 	
 	/* the basic idea:
 	 * read the index an entry at a time
@@ -80,10 +83,33 @@ int extract_files(const char *indexfile, const char *tarfile,
 	/* On tape devices and such, a tar archive very likely will not start at
 	 * offset 0, so we grab the base offset and use it for future seeks
 	 */
-	if ((baseoffset = p_lseek64(tar, 0, SEEK_CUR)) < 0)
+	/* If we use the mt ioctls, we store offsets & stuff as block numbers */
+	if (use_mt)
 	{
-		perror("lseek(tell) tarfile base offset");
-		return 1;
+		/* for tapes there are 2 steps, first we set the block size, then we
+		 * query the position
+		 */
+		mt_op.mt_op = MTSETBLK;
+		mt_op.mt_count = TARBLKSZ;
+		if (ioctl(tar, MTIOCTOP, &mt_op) != 0)
+		{
+			perror("MTSETBLK 512");
+			return 1;
+		}
+		if (ioctl(tar, MTIOCPOS, &mt_pos) != 0)
+		{
+			perror("MTIOCTPOS");
+			return 1;
+		}
+		baseoffset = mt_pos.mt_blkno;
+	}
+	else
+	{
+		if ((baseoffset = p_lseek64(tar, 0, SEEK_CUR)) < 0)
+		{
+			perror("lseek(tell) tarfile base offset");
+			return 1;
+		}
 	}
 
 	/* prep step: calculate string lengths of args only once */
@@ -109,7 +135,9 @@ int extract_files(const char *indexfile, const char *tarfile,
 			/* prep, parse the read line */
 			linelen = nlpos - linebuf + 1;
 			*nlpos = 0;
-			if (gotheader) /* don't try and parse the header line */
+			if (!gotheader) /* don't try and parse the header line */
+				gotheader = 1;
+			else
 			{
 				/* FIXME: this may segfault on an invalid index format */
 				iparse = linebuf;
@@ -124,11 +152,25 @@ int extract_files(const char *indexfile, const char *tarfile,
 					if (strncmp(argv[n], iparse, arglens[n-firstarg]) == 0)
 					{
 						/* seek to the record start and then pass the record through */
-						destoff = (off64_t)ioffset * 512 + baseoffset;
-						if (p_lseek64(tar, destoff, SEEK_SET) != destoff)
+						if (use_mt)
 						{
-							perror("lseek64 tarfile");
-							return 1;
+							/* mt uses block based seeks! */
+							mt_op.mt_op = MTSEEK;
+							mt_op.mt_count = ioffset + baseoffset;
+							if (ioctl(tar, MTIOCTOP, &mt_op) != 0)
+							{
+								perror("MTIOCTOP seek");
+								return 1;
+							}
+						}
+						else
+						{
+							destoff = (off64_t)ioffset * TARBLKSZ + baseoffset;
+							if (p_lseek64(tar, destoff, SEEK_SET) != destoff)
+							{
+								perror("lseek64 tarfile");
+								return 1;
+							}
 						}
 						/* this destroys ilen, but that's ok since we're only gonna
 						 * extract the file once
@@ -146,12 +188,10 @@ int extract_files(const char *indexfile, const char *tarfile,
 								return 2;
 							}
 						}
-						break; /* only extract file once */
-					}
-				}
-			}
-			else
-				gotheader = 1;
+						break; /* only extract file once, breaks out of for n argv */
+					} /* if index item matches arg n */
+				} /* for n over extract args */
+			} /* if gotheader */
 			
 			/* move the line out of the memory buffer, adjust variables */
 			/* this will move the null we put at the end of the buffer too */

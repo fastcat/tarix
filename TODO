@@ -1,0 +1,2 @@
+* tarix should autodetect input in extract mode and choose lseek or mt mode
+  without user input.
