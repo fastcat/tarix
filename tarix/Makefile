@@ -1,5 +1,5 @@
 TARGET=bin/tarix
-SOURCES=src/tarix.c src/create_index.c src/extract_files.c
+SOURCES=src/tarix.c src/create_index.c src/extract_files.c src/portability.c
 OBJECTS=$(patsubst src/%.c,obj/%.o,${SOURCES})
 DEPS=$(patsubst src/%.c,obj/%.d,${SOURCES})
 CPPFLAGS=-Isrc -D_GNU_SOURCE
