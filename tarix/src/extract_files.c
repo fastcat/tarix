@@ -41,13 +41,14 @@ int extract_files(const char *indexfile, const char *tarfile,
 	int *arglens;
 	int n, nread;
 	char *linebuf = (char*)malloc(TARBLKSZ);
-	char *linebufrdpos = linebuf;
+	int rdoff = 0;
 	int linebufsz = TARBLKSZ;
 	int linebufavail = linebufsz;
 	char *nlpos;
 	int linelen;
 	char *iparse;
 	unsigned long ioffset, ilen;
+	off64_t baseoffset = 0, destoff;
 	int gotheader = 0;
 	char passbuf[TARBLKSZ];
 	int index, tar;
@@ -75,6 +76,15 @@ int extract_files(const char *indexfile, const char *tarfile,
 			return 1;
 		}
 	}
+	
+	/* On tape devices and such, a tar archive very likely will not start at
+	 * offset 0, so we grab the base offset and use it for future seeks
+	 */
+	if ((baseoffset = p_lseek64(tar, 0, SEEK_CUR)) < 0)
+	{
+		perror("lseek(tell) tarfile base offset");
+		return 1;
+	}
 
 	/* prep step: calculate string lengths of args only once */
 	arglens = calloc(argc - firstarg, sizeof(int));
@@ -87,11 +97,11 @@ int extract_files(const char *indexfile, const char *tarfile,
 	 */
 	
 	/* linebufavail - 1: make sure there's room to drop a '\0' in */
-	while ((nread = read(index, linebufrdpos, linebufavail - 1)) > 0)
+	while ((nread = read(index, linebuf + rdoff, linebufavail - 1)) > 0)
 	{
-		linebufrdpos += nread;
+		rdoff += nread;
 		linebufavail -= nread;
-		*linebufrdpos = 0; /* null terminate the input buffer */
+		linebuf[rdoff] = 0; /* null terminate the input buffer */
 		
 		/* process any whole lines we've read */
 		while ((nlpos = strchr(linebuf, '\n')) != NULL)
@@ -114,12 +124,15 @@ int extract_files(const char *indexfile, const char *tarfile,
 					if (strncmp(argv[n], iparse, arglens[n-firstarg]) == 0)
 					{
 						/* seek to the record start and then pass the record through */
-						off64_t destoff = (off64_t)ioffset * 512;
+						destoff = (off64_t)ioffset * 512 + baseoffset;
 						if (p_lseek64(tar, destoff, SEEK_SET) != destoff)
 						{
 							perror("lseek64 tarfile");
 							return 1;
 						}
+						/* this destroys ilen, but that's ok since we're only gonna
+						 * extract the file once
+						 */
 						for (; ilen > 0; --ilen)
 						{
 							if ((n = read(tar, passbuf, TARBLKSZ)) < TARBLKSZ)
@@ -133,6 +146,7 @@ int extract_files(const char *indexfile, const char *tarfile,
 								return 2;
 							}
 						}
+						break; /* only extract file once */
 					}
 				}
 			}
@@ -140,9 +154,10 @@ int extract_files(const char *indexfile, const char *tarfile,
 				gotheader = 1;
 			
 			/* move the line out of the memory buffer, adjust variables */
-			memmove(linebuf, nlpos+1, linelen + 1); /* move the null too! */
+			/* this will move the null we put at the end of the buffer too */
+			memmove(linebuf, nlpos+1, rdoff - linelen + 1);
 			linebufavail += linelen;
-			linebufrdpos -= linelen;
+			rdoff -= linelen;
 		}
 		
 		/* if, after processing any lines, we don't have much space left in the
