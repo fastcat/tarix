@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
                      
 #include "tarix.h"
 
@@ -28,16 +29,21 @@ int show_help()
 	fprintf(stderr,
 		"Usage: tarix [-hix] [-f index_file] [-t tarfile]\n"
 		"  -h   Show this help\n"
-		"  -i   Create index from tar file on stdin\n"
-		"  -x   Use index specified with -f to extract tar file on stdin\n"
+		"  -i   Explicitly create index, don't pass tar data to stdout\n"
+		"  -x   Use index to extract tar file\n"
 		"  -f   Set index file to use\n"
-		"  -t   Set tar file to use (stdin if not specified)\n"
-		"With no options, will create an index of the tar file on stdin and\n"
-		"write it to the file specified by the TARIX_OUTFILE environment \n"
-		"variable, or out.tarix if that is not set; in this mode, the tar file\n"
-		"will passed through to stdout, so that tarix can be used with tar's\n"
-		"--use-compress-program option.  If the -i option is used, the tar file\n"
-		"will not be written to stdout.\n");
+		"  -t   Set tar file to use\n"
+		"  -m   Use mt (magnetic tape) IOCTLs for seeking instead of lseek\n"
+		"\n"
+		"The default action is to create an index and pass the tar data through\n"
+		"to stdout so that tarix can be used with tar's --use-compress-program\n"
+		"option.\n"
+		"\n"
+		"If the -i option is used, the tar file will not be written to stdout.\n"
+		"If -t is not specified, stdin is used for reading the tar file\n"
+		"If -f is not specified, the environment variable TARIX_OUTFILE will\n"
+		"determine the ouput location of the index file.  If that is not set,\n"
+		"out.tarix will be used\n");
 	return 0;
 }
 
@@ -55,9 +61,10 @@ int main(int argc, char *argv[])
 	char *indexfile = NULL;
 	char *tarfile = NULL;
 	int pass_through = 1;
+	int use_mt = 0;
 	
 	/* parse opts, do right thing */
-	while ((opt = getopt(argc, argv, "hif:t:x")) != -1)
+	while ((opt = getopt(argc, argv, "himf:t:x")) != -1)
 	{
 		switch (opt)
 		{
@@ -67,6 +74,9 @@ int main(int argc, char *argv[])
 			case 'i':
 				action = CREATE_INDEX;
 				pass_through = 0;
+				break;
+			case 'm':
+				use_mt = 1;
 				break;
 			case 'f':
 				if (indexfile)
@@ -112,7 +122,7 @@ int main(int argc, char *argv[])
 		case SHOW_HELP:
 			return show_help();
 		case EXTRACT_FILES:
-			return extract_files(indexfile, tarfile, argc, argv, optind);
+			return extract_files(indexfile, tarfile, use_mt, argc, argv, optind);
 			return 1;
 		default:
 			fprintf(stderr, "EEK! unknown action!\n");
