@@ -17,16 +17,20 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __TARIX_H__
-#define __TARIX_H__
+#ifndef __PORTABILITY_H__
+#define __PORTABILITY_H__
 
-#define TARIX_FMT_VERSION "0"
-#define TARIX_VERSION "0.0.1"
-#define TARIX_DEF_OUTFILE "out.tarix"
+#if defined(__FreeBSD__) /* on fbsd, all off_t are 64-bit */
 
-int create_index(const char *indexfile, const char *tarfile,
-	int pass_through);
-int extract_files(const char *indexfile, const char *tarfile,
-	int argc, char *argv[], int firstarg);
+#define P_O_LARGEFILE 0
+#define p_lseek64 lseek
+typedef off_t off64_t;
 
-#endif /* __TARIX_H__ */
+#else
+
+#define P_O_LARGEFILE O_LARGEFILE
+#define p_lseek64 lseek64
+
+#endif
+
+#endif /* __PORTABILITY_H__ */

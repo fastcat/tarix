@@ -26,11 +26,12 @@
 int show_help()
 {
 	fprintf(stderr,
-		"Usage: tarix [-hix] [-f index_file]\n"
+		"Usage: tarix [-hix] [-f index_file] [-t tarfile]\n"
 		"  -h   Show this help\n"
 		"  -i   Create index from tar file on stdin\n"
 		"  -x   Use index specified with -f to extract tar file on stdin\n"
 		"  -f   Set index file to use\n"
+		"  -t   Set tar file to use (stdin if not specified)\n"
 		"With no options, will create an index of the tar file on stdin and\n"
 		"write it to the file specified by the TARIX_OUTFILE environment \n"
 		"variable, or out.tarix if that is not set; in this mode, the tar file\n"
@@ -47,15 +48,16 @@ enum tarix_action
 	EXTRACT_FILES
 };
 
-int main(int argc, char *argv[], char *env[])
+int main(int argc, char *argv[])
 {
 	int action = CREATE_INDEX;
 	int opt;
-	char *argixfile = NULL;
+	char *indexfile = NULL;
+	char *tarfile = NULL;
 	int pass_through = 1;
 	
 	/* parse opts, do right thing */
-	while ((opt = getopt(argc, argv, "hif:x")) != -1)
+	while ((opt = getopt(argc, argv, "hif:t:x")) != -1)
 	{
 		switch (opt)
 		{
@@ -67,10 +69,16 @@ int main(int argc, char *argv[], char *env[])
 				pass_through = 0;
 				break;
 			case 'f':
-				if (argixfile)
-					free(argixfile);
-				argixfile = (char*)malloc(strlen(optarg) + 1);
-				strcpy(argixfile, optarg);
+				if (indexfile)
+					free(indexfile);
+				indexfile = (char*)malloc(strlen(optarg) + 1);
+				strcpy(indexfile, optarg);
+				break;
+			case 't':
+				if (tarfile)
+					free(tarfile);
+				tarfile = (char*)malloc(strlen(optarg) + 1);
+				strcpy(tarfile, optarg);
 				break;
 			case 'x':
 				action = EXTRACT_FILES;
@@ -91,17 +99,24 @@ int main(int argc, char *argv[], char *env[])
 				break;
 		}
 	}
+	
+	if (!indexfile)
+		indexfile = getenv("TARIX_OUTFILE");
+	if (!indexfile)
+		indexfile = TARIX_DEF_OUTFILE;
+
 	switch (action)
 	{
 		case CREATE_INDEX:
-			return create_index(argixfile, pass_through);
+			return create_index(indexfile, tarfile, pass_through);
 		case SHOW_HELP:
 			return show_help();
 		case EXTRACT_FILES:
-			fprintf(stderr, "Extract not yet implemented\n");
+			return extract_files(indexfile, tarfile, argc, argv, optind);
 			return 1;
 		default:
-			return extract_files(argc, argv, optind);
+			fprintf(stderr, "EEK! unknown action!\n");
+			return 1;
 	}
 	return -1;
 }
