@@ -67,8 +67,11 @@ void put_gz_header(t_streamp tsp) {
 int put_gz_footer(t_streamp tsp) {
   Bytef obuf[GZ_FOOTER_LEN];
   lsb_buf(obuf, tsp->crc32);
-  lsb_buf(obuf + 4, (unsigned long)(tsp->total_bytes & 0xffffffff));
-  return write(tsp->fd, obuf, 8);
+  lsb_buf(obuf + 4, (unsigned long)(tsp->raw_bytes & 0xffffffff));
+  int wr = write(tsp->fd, obuf, 8);
+  if (wr > 0)
+    tsp->zlib_bytes += wr;
+  return wr;
 }
 
 int process_deflate(t_streamp tsp, int flush) {
@@ -79,10 +82,16 @@ int process_deflate(t_streamp tsp, int flush) {
 
   tsp->zlib_err = deflate(zsp, flush);
   
-  /* update crc32 and total_bytes */
+  /* update crc32 and raw_bytes */
   int inbytes_used = zsp->next_in - old_ni;
   tsp->crc32 = update_crc(tsp->crc32, old_ni, inbytes_used);
-  tsp->total_bytes += inbytes_used;
+  tsp->raw_bytes += inbytes_used;
+  
+  /* reconfigure the input buffer */
+  if (inbytes_used > 0) {
+    memmove(tsp->inbuf, zsp->next_in, zsp->avail_in);
+    zsp->next_in = tsp->inbuf;
+  }
   
   if (zsp->avail_out == 0 || flush != Z_NO_FLUSH) {
     /* flush the buffer to output fd */
@@ -97,9 +106,80 @@ int process_deflate(t_streamp tsp, int flush) {
       memmove(tsp->outbuf, tsp->outbuf + nwrite, ewrite - nwrite);
       zsp->next_out = tsp->outbuf + ewrite - nwrite;
       zsp->avail_out += nwrite;
+      tsp->zlib_bytes += nwrite;
     }
     return nwrite;
   } else {
     return 0;
   }
+}
+
+int process_inflate(t_streamp tsp, int flush) {
+  z_streamp zsp = tsp->zsp;
+  
+  int nread = 0;
+  
+  /* fill input buffer if needed */
+  if (zsp->avail_in == 0) {
+    int eread = tsp->bufsz - zsp->avail_in;
+    nread = read(tsp->fd, zsp->next_in + zsp->avail_in, eread);
+    if (nread < 0) {
+      perror("read block");
+      return nread;
+    } else {
+      zsp->avail_in += nread;
+    }
+  }
+
+  /* save old pointer for crc calcs */
+  Bytef *old_ni = zsp->next_in;
+  Bytef *old_no = zsp->next_out;
+
+  tsp->zlib_err = inflate(zsp, flush);
+  
+  /* update crc32 and byte counters */
+  int inbytes_used = zsp->next_in - old_ni;
+  tsp->crc32 = update_crc(tsp->crc32, old_ni, inbytes_used);
+  tsp->zlib_bytes += inbytes_used;
+  tsp->raw_bytes += zsp->next_out - old_no;
+  
+  /* reconfigure the input buffer */
+  if (inbytes_used > 0) {
+    memmove(tsp->inbuf, zsp->next_in, zsp->avail_in);
+    zsp->next_in = tsp->inbuf;
+    zsp->avail_in = tsp->bufsz;
+  }
+  
+  return nread;
+}
+
+int read_gz_header(t_streamp tsp) {
+  Bytef buf[10];
+  int nread = read(tsp->fd, buf, 10);
+  if (nread < 0)
+    return nread;
+  if (nread != 10)
+    return 1;
+  
+  /* check gzip magic */
+  if (buf[0] != 0x1f || buf[1] != 0x8b)
+    return 1;
+  /* check gzip settings: deflate, FCOMMENT */
+  if (buf[2] != 8 || buf[3] != (1 << 4))
+    return 1;
+  
+  /* check comment magic */
+  char *signature = "TARIX COMPRESSED v" TARIX_FMT_VERSION_NEW;
+  int p = 0;
+  char c;
+  /* less than or equal to consume null terminator too */
+  while (p <= strlen(signature)) {
+    if (read(tsp->fd, &c, 1) != 1)
+      return -1;
+    if (c != signature[p])
+      return 1;
+    ++p;
+  }
+  
+  return 0;
 }

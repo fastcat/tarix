@@ -10,7 +10,7 @@ OBJECTS=$(patsubst src/%.c,obj/%.o,${SOURCES})
 LIB_OBJS=$(patsubst src/%.c,obj/%.o,${LIB_SRCS})
 DEPS=$(patsubst src/%.c,obj/%.d,${SOURCES})
 
-T_SOURCES=test/t_tws.c
+T_SOURCES=test/t_tws.c test/t_trs.c
 T_OBJECTS=$(patsubst test/%.c,obj/test/%.o,${T_SOURCES})
 T_DEPS=$(patsubst test/%.c,obj/test/%.d,${T_SOURCES})
 T_TARGETS=$(patsubst test/%.c,bin/test/%,${T_SOURCES})
@@ -29,9 +29,10 @@ dep : ${DEPS}
 
 build_test: bin/test/.d ${T_TARGETS}
 
-# run a test case
 test-%: bin/test/t_%
-	$<
+	@echo Testing: $*
+	@if [ -f test/t_$*.sh ]; then test/t_$*.sh ; else $< ; fi
+	@echo Testing: $* Done
 
 test: $(patsubst bin/test/t_%,test-%,${T_TARGETS})
 
