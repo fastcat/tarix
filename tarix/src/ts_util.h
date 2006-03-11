@@ -17,18 +17,19 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __TARIX_H__
-#define __TARIX_H__
+/* Stick the gzip header into the stream's output buffers.
+ * Format as defined in RFc-1952
+ */
+void put_gz_header(t_streamp tsp);
 
-#define TARIX_FMT_VERSION_OLD "0"
-#define TARIX_FMT_VERSION_NEW "1"
-#define TARIX_VERSION "1.0"
-#define TARIX_DEF_OUTFILE "out.tarix"
+/* Write the gzip footer direct to the output fd */
+int put_gz_footer(t_streamp tsp);
 
-int create_index(const char *indexfile, const char *tarfile,
-	int pass_through, int zlib_level);
-int extract_files(const char *indexfile, const char *tarfile, int use_mt,
-	int zlib_level,
-	int argc, char *argv[], int firstarg);
+#define GZ_FOOTER_LEN 8
 
-#endif /* __TARIX_H__ */
+/* Internal function to handle an iteration of calling deflate on the zlib
+ * stream.  Will write the output buffer to the file descriptor and reset it
+ * if it fills up or if flush != Z_NO_FLUSH.  Also keeps track of crc32 and
+ * total_bytes.
+ */
+int process_deflate(t_streamp tsp, int flush);
