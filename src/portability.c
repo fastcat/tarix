@@ -1,6 +1,6 @@
 /*
  *  tarix - a GNU/POSIX tar indexer
- *  Copyright (C) 2002 Matthew "Cheetah" Gabeler-Lee
+ *  Copyright (C) 2006 Matthew "Cheetah" Gabeler-Lee
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
