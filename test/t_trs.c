@@ -29,28 +29,33 @@
 
 #include "tstream.h"
 
-#define OFILE "bin/test/data.gz"
+#define IFILE "bin/test/data.gz"
+#define OFILE "bin/test/data"
 
 void ptserr(const char *msg, off64_t rv, t_streamp tsp) {
   if (rv == TS_ERR_ZLIB) {
-    printf("zlib deflate error: %d\n", tsp->zlib_err);
+    printf("zlib inflate error: %d\n  %s\n", tsp->zlib_err, tsp->zsp->msg);
   } else if (rv == TS_ERR_BADMODE) {
     printf("invalid mode\n");
   } else if (rv == -1) {
-    perror("zlib write");
+    perror("zlib read");
   } else {
     printf("unknown error: %lld\n", rv);
   }
 }
 
 int main (int argc, char **argv) {
-  int fd;
-  if ((fd = open(OFILE, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
+  int ofd, ifd;
+  if ((ifd = open(IFILE, O_RDONLY)) < 0) {
+    perror("open input");
+    return 1;
+  }
+  if ((ofd = open(OFILE, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
     perror("open output");
     return 1;
   }
   
-  t_streamp tsp = init_tws(NULL, fd, 3);
+  t_streamp tsp = init_trs(NULL, ifd, 3);
   if (tsp->zlib_err != Z_OK) {
     printf("zlib init error: %d\n", tsp->zlib_err);
     return 1;
@@ -58,29 +63,18 @@ int main (int argc, char **argv) {
   
   int rv;
   
-  rv = ts_write(tsp, "Hello World\n", 12);
-  if (rv < 0) {
-    ptserr("ts_write 1", rv, tsp);
-    return 1;
-  } else if (rv != 12) {
-    printf("write returned %d\n", rv);
-    return 1;
-  }
+  Bytef buf[1024];
   
-  off64_t cpoff = ts_checkpoint(tsp);
-  if (cpoff < 0) {
-    ptserr("ts_checkpoint", cpoff, tsp);
-    return 1;
-  }
-  printf("checkpointed at output byte 0x%llx\n", cpoff);
-  
-  rv = ts_write(tsp, "Hello World\n", 12);
+  rv = ts_read(tsp, buf, 1024);
   if (rv < 0) {
-    ptserr("ts_write 2", rv, tsp);
+    ptserr("ts_read", rv, tsp);
     return 1;
-  } else if (rv != 12) {
-    printf("write returned %d\n", rv);
-    return 1;
+  } else {
+    rv = write(ofd, buf, rv);
+    if (rv < 0) {
+      perror("write");
+      return 1;
+    }
   }
   
   rv = ts_close(tsp, 1);

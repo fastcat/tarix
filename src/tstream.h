@@ -21,16 +21,27 @@
 
 #include <zlib.h>
 
+#include "portability.h"
+
 typedef struct _t_stream {
+  /* real file descriptor to read/write from */
   int fd;
+  /* buffers for zlib work */
   uLong bufsz;
   Bytef *inbuf;
   Bytef *outbuf;
+  /* zlib stream */
   z_streamp zsp;
+  /* stream mode, one of TS_READ or TS_WRITE */
   int mode;
+  /* return code from the last zlib call */
   int zlib_err;
+  /* crc32 of input data processed so far */
   unsigned long crc32;
-  unsigned long long total_bytes;
+  /* number of raw data bytes processed so far */
+  off64_t raw_bytes;
+  /* number of zlib stream bytes processed so far (includes headers) */
+  off64_t zlib_bytes;
 } t_stream;
 
 typedef struct _t_stream *t_streamp;
@@ -67,6 +78,7 @@ t_streamp init_tws(t_streamp tsp, int fd, int zlib_level);
  * a straight read through.
  * The fd argument is the file descriptor to do the real reads from.
  * The initialized t_streamp will be returned.
+ * If the magic is wrong, zlib_err will be set to Z_VERSION_ERROR.
  */
 t_streamp init_trs(t_streamp tsp, int fd, int zlib_level);
 
@@ -77,8 +89,10 @@ t_streamp init_trs(t_streamp tsp, int fd, int zlib_level);
  * If a zlib error ocurrs, TS_ERR_ZLIB will be returned, and the zlib
  * code can be found in tsp->zlib_err.
  * If a real write error ocurrs, -1 will be returned, as with write(2).
+ * The function will make a best effort to write as many bytes as
+ * requested.
  */
-int ts_write(t_streamp tsp, Bytef *buf, uLong count);
+int ts_write(t_streamp tsp, void *buf, int len);
 
 /* Read bytes from the stream.
  * Returns the number of bytes written into buf.
@@ -87,7 +101,7 @@ int ts_write(t_streamp tsp, Bytef *buf, uLong count);
  * code can be found in tsp->zlib_err.
  * If a real read error ocurrs, -1 will be returned, as with read(2).
  */
-int ts_read(t_streamp tsp, Bytef *buf, uLong count);
+int ts_read(t_streamp tsp, void *buf, int len);
 
 /* Checkpoint a write stream.  Only meaningful for zlib streams, but calling
  * it on a non-zlib stream is harmless (equivalent to a no-op).
@@ -97,14 +111,16 @@ int ts_read(t_streamp tsp, Bytef *buf, uLong count);
  * point, -1 on write errors, TS_ERR_ZLIB on zlib errors, and TS_ERR_BADMODE
  * if a read stream is passed in.
  */
-int ts_checkpoint(t_streamp tsp);
+off64_t ts_checkpoint(t_streamp tsp);
 
-/* Seek in an input stream, similar to lseek(2).  Always acts in the
- * whence = SEEK_SET mode.  Note that for zlib streams, the offset MUST
- * be the actual offset in the zlib stream, not the logical offset in the
- * uncompressed stream.
+/* Seek in an input stream, similar to lseek(2).  Always acts in the whence
+ * = SEEK_SET mode.  Note that for zlib streams, the offset MUST be the
+ * actual offset in the zlib stream, not the logical offset in the
+ * uncompressed stream.  Returns 0 on success, -1 on i/o error,
+ * TS_ERR_BADMODE if the stream is not a read stream, and TS_ERR_ZLIB if
+ * there is a zlib error.
  */
-int ts_seek(t_streamp tsp, long long offset);
+int ts_seek(t_streamp tsp, off64_t offset);
 
 /* Close and free a stream (read or write).  Returns 0 on success, -1 on i/o
  * errors, TS_ERR_ZLIB on zlib errors, or TS_ERR_BADMODE if the stream
