@@ -42,6 +42,12 @@ typedef struct _t_stream {
   off64_t raw_bytes;
   /* number of zlib stream bytes processed so far (includes headers) */
   off64_t zlib_bytes;
+  /* boolean for using magnetic tape interface or not */
+  int usemt;
+  /* block size for magnetic tap operations */
+  int blksz;
+  /* base offset of archive start */
+  off64_t baseoffset;
 } t_stream;
 
 typedef struct _t_stream *t_streamp;
@@ -70,7 +76,8 @@ typedef struct _t_stream *t_streamp;
  * If zlib initialization failed, the caller must call ts_close on the stream
  * and then discard it.
  */
-t_streamp init_tws(t_streamp tsp, int fd, int zlib_level);
+t_streamp init_tws(t_streamp tsp, int fd, int usemt, int blksz,
+  int zlib_level);
 
 /* Create/init a tar read stream.
  * If in is not null, it will be used, otherwise a new item will be allocated.
@@ -80,7 +87,8 @@ t_streamp init_tws(t_streamp tsp, int fd, int zlib_level);
  * The initialized t_streamp will be returned.
  * If the magic is wrong, zlib_err will be set to Z_VERSION_ERROR.
  */
-t_streamp init_trs(t_streamp tsp, int fd, int zlib_level);
+t_streamp init_trs(t_streamp tsp, int fd, int usemt, int blksz,
+  int zlib_level);
 
 /* Write bytes to the stream.  If zlib is enabled, data may be buffered.
  * Returns the number of bytes processed, which is not necessarily the

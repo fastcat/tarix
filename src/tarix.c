@@ -32,26 +32,21 @@ int show_help()
 		"  -i   Explicitly create index, don't pass tar data to stdout\n"
 		"  -z   Enable zlib (de)compression (default off)\n"
 		"  -x   Use index to extract tar file\n"
-		"  -<n> Set zlib compression level (default 3)\n"
-		"  -f   Set index file to use\n"
-		"  -t   Set tar file to use\n"
+		"  -<n> Set zlib compression level (default 3, same meaning as gzip)\n"
+		"  -f   Set index file to use (else $TARIX_OUTFILE or out.tarix)\n"
+		"  -t   Set tar file to use (otherwise stdin)\n"
 		"  -m   Use mt (magnetic tape) IOCTLs for seeking instead of lseek\n"
+		"\n"
+		"The environment variable TARIX will be examined for arguments in\n"
+		"addition to the command line\n"
 		"\n"
 		"The default action is to create an index and pass the tar data through\n"
 		"to stdout so that tarix can be used with tar's --use-compress-program\n"
 		"option.\n"
 		"\n"
-		"If the -i option is used, the tar file will not be written to stdout.\n"
-		"If -t is not specified, stdin is used for reading the tar file\n"
-		"If -f is not specified, the environment variable TARIX_OUTFILE will\n"
-		"determine the ouput location of the index file.  If that is not set,\n"
-		"out.tarix will be used.\n"
-		"If -z is specified, zlib will be used on input/output.\n"
 		"An archive created with zlib must be extracted thus too.\n"
 		"A zlib'd archive will be readable with gunzip, but an archive\n"
 		"compressed with gzip will not be readable by tarix\n"
-		"Specifying -<n> will set the zlib compression level, same as with\n"
-		"gzip.  This only applies when creating indecies.\n"
 	);
 	return 0;
 }
@@ -75,7 +70,7 @@ int main(int argc, char *argv[])
 	int zlib_level = 3;
 	
 	/* parse opts, do right thing */
-	while ((opt = getopt(argc, argv, "himf:t:x123456789")) != -1)
+	while ((opt = getopt(argc, argv, "himf:t:xz123456789")) != -1)
 	{
 		switch (opt)
 		{

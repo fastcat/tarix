@@ -55,7 +55,7 @@ int main (int argc, char **argv) {
     return 1;
   }
   
-  t_streamp tsp = init_trs(NULL, ifd, 3);
+  t_streamp tsp = init_trs(NULL, ifd, 0, 0, 3);
   if (tsp->zlib_err != Z_OK) {
     printf("zlib init error: %d\n", tsp->zlib_err);
     return 1;
