@@ -17,6 +17,9 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef __TS_UTIL_H__
+#define __TS_UTIL_H__
+
 /* Stick the gzip header into the stream's output buffers.
  * Format as defined in RFc-1952
  */
@@ -43,3 +46,5 @@ int process_deflate(t_streamp tsp, int flush);
  * Also keeps track of crc32 and byte counts.
  */
 int process_inflate(t_streamp tsp, int flush);
+
+#endif /* __TS_UTIL_H__ */

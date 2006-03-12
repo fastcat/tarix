@@ -17,6 +17,9 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef __TSTREAM_H__
+#define __TSTREAM_H__
+
 /* structures and functions for a tar read & write stream */
 
 #include <zlib.h>
@@ -140,3 +143,5 @@ int ts_seek(t_streamp tsp, off64_t offset);
  * allocated at init_tws or init_trs.
  */
 int ts_close(t_streamp tsp, int dofree);
+
+#endif /* __TSTREAM_H__ */

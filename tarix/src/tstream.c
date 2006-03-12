@@ -44,7 +44,22 @@ static void init_ts_buffers(t_streamp tsp) {
 static int do_seek(t_streamp tsp, off64_t offset) {
   offset += tsp->baseoffset;
   if (tsp->usemt) {
-    return p_mt_setpos(tsp->fd, offset / tsp->blksz);
+    int tmp = p_mt_setpos(tsp->fd, offset / tsp->blksz);
+    if (tmp < 0)
+      return tmp;
+    /* consume partial block if necessary */
+    int remainder = offset % tsp->blksz;
+    if (remainder != 0) {
+      Bytef buf[TARBLKSZ];
+      while (remainder > 0) {
+        int nread = TARBLKSZ;
+        if (nread > remainder)
+          nread = remainder;
+        if (read(tsp->fd, buf, nread) != nread)
+          return -1;
+      }
+    }
+    return 0;
   } else {
     off64_t lsret = lseek64(tsp->fd, offset, SEEK_SET);
     return lsret < 0 ? -1 : 0;
@@ -84,8 +99,18 @@ static t_streamp init_ts(t_streamp tsp, int fd, int usemt, int blksz,
   tsp->blksz = blksz <= 0 ? TARBLKSZ : blksz;
   
   if (tsp->usemt) {
-    p_mt_setblk(tsp->fd, tsp->blksz);
+    int tmp = p_mt_setblk(tsp->fd, tsp->blksz);
+    if (tmp < 0) {
+      tsp->zlib_err = Z_STREAM_ERROR;
+      /* don't necessarily have zsp */
+      /* tsp->zsp->msg = "setblk error"; */
+      return tsp;
+    }
     tsp->baseoffset = do_tell(tsp);
+    if (tsp->baseoffset < 0) {
+      tsp->zlib_err = Z_STREAM_ERROR;
+      tsp->zsp->msg = "get base offset error";
+    }
   } else {
     tsp->baseoffset = 0;
   }
@@ -129,7 +154,7 @@ t_streamp init_tws(t_streamp tsp, int fd, int usemt, int blksz,
   return tsp;
 }
 
-t_streamp init_trs(t_streamp tsp, int fd, int blksz, int usemt,
+t_streamp init_trs(t_streamp tsp, int fd, int usemt, int blksz,
     int zlib_level) {
   /* common init, includes part of zlib */
   tsp = init_ts(tsp, fd, usemt, blksz, zlib_level);
@@ -181,7 +206,7 @@ int ts_write(t_streamp tsp, void *buf, int len) {
       if (toadd > left)
         toadd = left;
       
-      memcpy(zsp->next_in, cur, toadd);
+      memcpy(zsp->next_in + zsp->avail_in, cur, toadd);
       zsp->avail_in += toadd;
       cur += toadd;
       left -= toadd;
@@ -213,8 +238,8 @@ int ts_read(t_streamp tsp, void *buf, int len) {
   void *cur = buf;
   
   while (left > 0) {
-    /* run an inflate cycle */
-    int nread = process_inflate(tsp, Z_NO_FLUSH);
+    /* run an inflate cycle, flush as much to output buffer as possible */
+    int nread = process_inflate(tsp, Z_SYNC_FLUSH);
     if (nread < 0)
       return nread;
     if (tsp->zlib_err != Z_OK && tsp->zlib_err != Z_STREAM_END)
@@ -222,13 +247,18 @@ int ts_read(t_streamp tsp, void *buf, int len) {
     
     /* pull data from the zlib output buffer into our buffer */
     if (zsp->avail_out < tsp->bufsz) {
-      int toadd = tsp->bufsz - zsp->avail_out;
+      /* the available data is the buffer size minus the unused part */
+      int bytesavail = tsp->bufsz - zsp->avail_out;
+      int toadd = bytesavail;
       if (toadd > left)
         toadd = left;
       
+      /* copy data to the requested buffer */
       memcpy(cur, tsp->outbuf, toadd);
+      /* shift out the part we've used up */
+      memmove(tsp->outbuf, tsp->outbuf + toadd, bytesavail - toadd);
       zsp->avail_out += toadd;
-      zsp->next_out -= toadd;
+      zsp->next_out = tsp->outbuf + (tsp->bufsz - zsp->avail_out);
       left -= toadd;
     }
     
