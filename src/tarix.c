@@ -24,6 +24,8 @@
                      
 #include "tarix.h"
 
+#define OPTSTR "himf:t:xz123456789"
+
 int show_help() {
   fprintf(stderr,
     "Usage: tarix [-hizx] [-<n>] [-f index_file] [-t tarfile]\n"
@@ -56,6 +58,59 @@ enum tarix_action {
   EXTRACT_FILES
 };
 
+static int envgetopt(char **evarp, char *optstr) {
+  char *evar = *evarp;
+  int i;
+  int error = '?';
+  while (*evar == ' ')
+    ++evar;
+  if (evar[0] != '-') {
+    if (evar[0] != 0) {
+      fprintf(stderr, "error in format for TARIX environ options\n");
+      error = '?';
+      optopt = evar[0];
+    } else {
+      error = 0;
+      *evarp = NULL;
+    }
+    return error;
+  }
+  for (i = 0; i < strlen(optstr); ++i) {
+    if (optstr[i] == ':')
+      continue;
+    if (evar[1] == optstr[i]) {
+      if (optstr[i+1] == ':') {
+        char *spos;
+        if (evar[2] != ' ') {
+          error = ':';
+          break;
+        }
+        spos = strchr(evar + 3, ' ');
+        if (spos == NULL) {
+          if (strlen(evar + 3) == 0) {
+            error = ':';
+            break;
+          }
+          /* this is one short so incr below is correct */
+          spos = evar + 3 + strlen(evar + 3) - 1;
+        } else
+          *spos = 0;
+        optarg = evar + 3;
+        *evarp = spos + 1;
+      } else {
+        *evarp = evar + 2;
+      }
+      optopt = evar[1];
+      return optopt;
+    }
+  }
+  /* fall through means error */
+  *evarp = NULL;
+  optarg = NULL;
+  optopt = evar[1];
+  return error;
+}
+
 int main(int argc, char *argv[]) {
   int action = CREATE_INDEX;
   int opt;
@@ -65,9 +120,17 @@ int main(int argc, char *argv[]) {
   int use_mt = 0;
   int use_zlib = 0;
   int zlib_level = 3;
+  char *tenv = getenv("TARIX");
   
   /* parse opts, do right thing */
-  while ((opt = getopt(argc, argv, "himf:t:xz123456789")) != -1) {
+  while (1) {
+    if (tenv != NULL)
+      opt = envgetopt(&tenv, OPTSTR);
+    /* envgetopt may bail if there is nothing to parse */
+    if (tenv == NULL)
+      opt = getopt(argc, argv, OPTSTR);
+    if (opt == -1)
+      break; /* no more options */
     switch (opt) {
       case 'h':
         action = SHOW_HELP;
