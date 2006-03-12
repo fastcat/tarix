@@ -144,7 +144,6 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
         int extract = 0;
         for (n = firstarg; n < argc; ++n) {
           if (strncmp(argv[n], iparse, arglens[n-firstarg]) == 0) {
-fprintf(stderr, "extract %s for %s\n", iparse, argv[n]);
             extract = 1;
             break;
           }
@@ -152,10 +151,8 @@ fprintf(stderr, "extract %s for %s\n", iparse, argv[n]);
         if (extract) {
           /* seek to the record start and then pass the record through */
           /* don't actually seek if we're already there */
-fprintf(stderr, "seek if %lld != %ld\n", curpos, ioffset);
           if (curpos != ioffset) {
             destoff = zlib_level ? zoffset : (off64_t)ioffset * TARBLKSZ;
-fprintf(stderr, "seeking to %lld\n", destoff);
             if (ts_seek(tsp, destoff) != 0) {
               fprintf(stderr, "seek error\n");
               return 1;
@@ -165,14 +162,12 @@ fprintf(stderr, "seeking to %lld\n", destoff);
           /* this destroys ilen, but that's ok since we're only gonna
            * extract the file once
            */
-fprintf(stderr, "going to read %ld blocks\n", ilen);
           for (; ilen > 0; --ilen) {
             if ((n = ts_read(tsp, passbuf, TARBLKSZ)) < TARBLKSZ) {
               perror((n > 0) ? "partial tarfile read" : "read tarfile");
               return 2;
             }
             ++curpos;
-fprintf(stderr, "read a block, curpos = %lld\n", curpos);
             if ((n = write(outfd, passbuf, TARBLKSZ)) < TARBLKSZ) {
               perror((n > 0) ? "partial tarfile write" : "write tarfile");
               return 2;
