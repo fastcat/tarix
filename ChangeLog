@@ -1,3 +1,6 @@
+1.0
+	* Zlib support
+
 0.0.4
 	* Vast improvement in restore speed by removing needless tell/seek calls
 

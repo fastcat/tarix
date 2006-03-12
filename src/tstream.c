@@ -57,6 +57,7 @@ static int do_seek(t_streamp tsp, off64_t offset) {
           nread = remainder;
         if (read(tsp->fd, buf, nread) != nread)
           return -1;
+        remainder -= nread;
       }
     }
     return 0;
