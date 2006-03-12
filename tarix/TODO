@@ -1,2 +1,3 @@
 * tarix should autodetect input in extract mode and choose lseek or mt mode
   without user input.
+* error messages from zlib may be reported as i/o errors "Success"
