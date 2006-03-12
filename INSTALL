@@ -1,14 +1,17 @@
-tarix is a fairly simple program and should work on any system with an ANSI
+Tarix is a fairly simple program and should work on any system with an ANSI
 C compiler that suports GNU-ish 64-bit integers ([unsigned] long long,
 strtoull).  If you are not compiling on a known supported platform, you will
 probably have to modify src/portability.h to get correct defines for 64-bit
-file operations correct.  If this is not sufficient, please report it as a
-bug!
+file operations correct, and src/portability.c to get correct
+implementations of the magnetic tape setblk/seek/tell operations.  If this
+is not sufficient, please report it as a bug!
 
 To compile tarix, simply type make (or gmake if your make program is not GNU
 make) from the base directory of the source distribution.  Running make
 install will install tarix to /usr/local by default, but this can be changed
 by editing the variables at the top of the Makefile.
+
+Tarix requires the zlib headers and library.
 
 Known Supported Platforms:
 	Linux

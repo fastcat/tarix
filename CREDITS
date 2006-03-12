@@ -1,2 +1,3 @@
 Some of the code in tarix is derrived from GNU tar, and the perl
-Archive::Tar module.
+Archive::Tar module.  Some is also taken from zlib example code, and
+RFC-1952.
