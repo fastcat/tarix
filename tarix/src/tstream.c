@@ -17,32 +17,82 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "tstream.h"
-#include "ts_util.h"
-
 #include <stdlib.h>
 #include <string.h>
-/*DEBUG*/
-#include <stdio.h>
+
+#include "tstream.h"
+#include "ts_util.h"
+#include "tar.h"
 
 /* TODO: pass filename for inclusion in gzip header */
 
 /* common tsp init */
-static t_streamp init_ts(t_streamp tsp, int fd, int zlib_level) {
+static void init_ts_buffers(t_streamp tsp) {
+  if (tsp->bufsz <= 0)
+    tsp->bufsz = TS_BUFSZ;
+  if (tsp->inbuf == NULL)
+    tsp->inbuf = (Bytef*)malloc(tsp->bufsz);
+  if (tsp->outbuf == NULL)
+    tsp->outbuf = (Bytef*)malloc(tsp->bufsz);
+    /* put our buffer info into it */
+    tsp->zsp->next_in = tsp->inbuf;
+    tsp->zsp->avail_in = 0;
+    tsp->zsp->next_out = tsp->outbuf;
+    tsp->zsp->avail_out = tsp->bufsz;
+}
+
+static int do_seek(t_streamp tsp, off64_t offset) {
+  offset += tsp->baseoffset;
+  if (tsp->usemt) {
+    return p_mt_setpos(tsp->fd, offset / tsp->blksz);
+  } else {
+    off64_t lsret = lseek64(tsp->fd, offset, SEEK_SET);
+    return lsret < 0 ? -1 : 0;
+  }
+}
+
+static off64_t do_tell(t_streamp tsp) {
+  off64_t pos;
+  if (tsp->usemt) {
+    if (p_mt_getpos(tsp->fd, &pos) != 0)
+      return -1;
+    return pos * tsp->blksz;
+  } else {
+    pos = lseek64(tsp->fd, 0, SEEK_CUR);
+    return pos;
+  }
+}
+
+/* common tsp init */
+static t_streamp init_ts(t_streamp tsp, int fd, int usemt, int blksz,
+    int zlib_level) {
   /* allocate the stream data */
   if (tsp == NULL)
     tsp = (t_streamp)malloc(sizeof(t_stream));
 
   /* initialize fields */
   tsp->fd = fd;
-  tsp->bufsz = zlib_level > 0 ? TS_BUFSZ : 0;
-  tsp->inbuf = zlib_level > 0 ? (Bytef*)malloc(tsp->bufsz) : NULL;
-  tsp->outbuf = zlib_level > 0 ? (Bytef*)malloc(tsp->bufsz) : NULL;
+  tsp->bufsz = 0;
+  tsp->inbuf = NULL;
+  tsp->outbuf = NULL;
   tsp->zlib_err = Z_OK;
   tsp->zsp = NULL;
   tsp->crc32 = 0;
   tsp->raw_bytes = 0;
   tsp->zlib_bytes = 0;
+  tsp->usemt = usemt;
+  tsp->blksz = blksz <= 0 ? TARBLKSZ : blksz;
+  
+  if (tsp->usemt) {
+    p_mt_setblk(tsp->fd, tsp->blksz);
+    tsp->baseoffset = do_tell(tsp);
+  } else {
+    tsp->baseoffset = 0;
+  }
+  if (tsp->baseoffset < 0) {
+    tsp->zlib_err = Z_STREAM_ERROR;
+    return tsp;
+  }
   
   if (zlib_level > 0) {
     /* create the zlib stream */
@@ -50,15 +100,17 @@ static t_streamp init_ts(t_streamp tsp, int fd, int zlib_level) {
     tsp->zsp->zalloc = NULL;
     tsp->zsp->zfree = NULL;
     tsp->zsp->opaque = NULL;
+    
+    init_ts_buffers(tsp);
   }
   
   return tsp;
 }
 
-t_streamp init_tws(t_streamp tsp, int fd, int zlib_level) {
-  
+t_streamp init_tws(t_streamp tsp, int fd, int usemt, int blksz,
+    int zlib_level) {
   /* common init, includes part of zlib */
-  tsp = init_ts(tsp, fd, zlib_level);
+  tsp = init_ts(tsp, fd, usemt, blksz, zlib_level);
   tsp->mode = TS_WRITE;
 
   /* if zlib asked for, set it up */
@@ -70,12 +122,6 @@ t_streamp init_tws(t_streamp tsp, int fd, int zlib_level) {
     if (tsp->zlib_err != Z_OK)
       return tsp;
     
-    /* put our buffer info into it */
-    tsp->zsp->next_in = tsp->inbuf;
-    tsp->zsp->avail_in = 0;
-    tsp->zsp->next_out = tsp->outbuf;
-    tsp->zsp->avail_out = tsp->bufsz;
-    
     /* add the gzip header to the stream */
     put_gz_header(tsp);
   }
@@ -83,10 +129,10 @@ t_streamp init_tws(t_streamp tsp, int fd, int zlib_level) {
   return tsp;
 }
 
-t_streamp init_trs(t_streamp tsp, int fd, int zlib_level) {
-  
+t_streamp init_trs(t_streamp tsp, int fd, int blksz, int usemt,
+    int zlib_level) {
   /* common init, includes part of zlib */
-  tsp = init_ts(tsp, fd, zlib_level);
+  tsp = init_ts(tsp, fd, usemt, blksz, zlib_level);
   tsp->mode = TS_READ;
 
   /* if zlib asked for, set it up */
@@ -96,12 +142,6 @@ t_streamp init_trs(t_streamp tsp, int fd, int zlib_level) {
     tsp->zlib_err = inflateInit2(tsp->zsp, -MAX_WBITS);
     if (tsp->zlib_err != Z_OK)
       return tsp;
-    
-    /* put our buffer info into it */
-    tsp->zsp->next_in = tsp->inbuf;
-    tsp->zsp->avail_in = 0;
-    tsp->zsp->next_out = tsp->outbuf;
-    tsp->zsp->avail_out = tsp->bufsz;
     
     /* read the gzip header from the stream */
     int gzhrv = read_gz_header(tsp);
@@ -229,7 +269,34 @@ off64_t ts_checkpoint(t_streamp tsp) {
   return tsp->zlib_bytes;
 }
 
-/************ TODO: ts_seek **********/
+int ts_seek(t_streamp tsp, off64_t offset) {
+  if (tsp == NULL || tsp->mode != TS_READ)
+    return TS_ERR_BADMODE;
+  
+  /* we could use inflateSync to ensure a proper stream state, but
+   * inspection of the zlib code for that shows that it just searches for a
+   * sync point and then resets the stream.  Since we know where the sync
+   * point is, we just need to reset the stream.
+   */
+  
+  /* TODO: check for the sync point magic right before the offset? */
+  
+  z_streamp zsp = tsp->zsp;
+  if (zsp != NULL) {
+    /* reset buffers */
+    init_ts_buffers(tsp);
+    /* reset zlib */
+    tsp->zlib_err = inflateReset(zsp);
+  }
+  
+  /* actual stream seek, both for zlib and non-zlib */
+  if (do_seek(tsp, offset) != 0)
+    return -1;
+  
+  /* next read will refill buffers */
+  
+  return 0;
+}
 
 int ts_close(t_streamp tsp, int dofree) {
   

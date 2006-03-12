@@ -29,28 +29,34 @@
 
 #include "tstream.h"
 
-#define OFILE "bin/test/data.gz"
+#define IFILE "bin/test/data.gz"
+#define OFILE "bin/test/data"
 
-void ptserr(const char *msg, off64_t rv, t_streamp tsp) {
+int ptserr(const char *msg, off64_t rv, t_streamp tsp) {
   if (rv == TS_ERR_ZLIB) {
-    printf("zlib deflate error: %d\n", tsp->zlib_err);
+    printf("zlib error: %d\n  %s\n", tsp->zlib_err, tsp->zsp->msg);
   } else if (rv == TS_ERR_BADMODE) {
     printf("invalid mode\n");
   } else if (rv == -1) {
-    perror("zlib write");
+    perror("i/o error");
   } else {
-    printf("unknown error: %lld\n", rv);
+    printf("unknown error from %s: %lld\n", msg, rv);
   }
+  return 1;
 }
 
 int main (int argc, char **argv) {
-  int fd;
-  if ((fd = open(OFILE, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
+  int ofd, ifd;
+  if ((ifd = open(IFILE, O_RDONLY)) < 0) {
+    perror("open input");
+    return 1;
+  }
+  if ((ofd = open(OFILE, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
     perror("open output");
     return 1;
   }
   
-  t_streamp tsp = init_tws(NULL, fd, 0, 0, 3);
+  t_streamp tsp = init_trs(NULL, ifd, 0, 0, 3);
   if (tsp->zlib_err != Z_OK) {
     printf("zlib init error: %d\n", tsp->zlib_err);
     return 1;
@@ -58,46 +64,29 @@ int main (int argc, char **argv) {
   
   int rv;
   
-  rv = ts_write(tsp, "Hello World\n", 12);
-  if (rv < 0) {
-    ptserr("ts_write 1", rv, tsp);
-    return 1;
-  } else if (rv != 12) {
-    printf("write returned %d\n", rv);
-    return 1;
-  }
+  Bytef buf[1024];
   
-  off64_t cpoff = ts_checkpoint(tsp);
-  if (cpoff < 0) {
-    ptserr("ts_checkpoint", cpoff, tsp);
-    return 1;
-  }
-  printf("checkpointed at output byte 0x%llx\n", cpoff);
+  /* 30 is the observed checkpoitn address */
+  rv = ts_seek(tsp, 0x30);
+  if (rv < 0)
+    return ptserr("ts_seek", rv, tsp);
   
-  rv = ts_write(tsp, "Hello World\n", 12);
-  if (rv < 0) {
-    ptserr("ts_write 2", rv, tsp);
-    return 1;
-  } else if (rv != 12) {
-    printf("write returned %d\n", rv);
-    return 1;
+  rv = ts_read(tsp, buf, 1024);
+  if (rv < 0)
+    return ptserr("ts_read", rv, tsp);
+  else {
+    rv = write(ofd, buf, rv);
+    if (rv < 0) {
+      perror("write");
+      return 1;
+    }
   }
   
   rv = ts_close(tsp, 1);
-  if (rv == 0) {
-    /* do nothing */
-  } else if (rv == -1) {
-    perror("ts_close");
-    return 1;
-  } else if (rv == TS_ERR_ZLIB) {
-    printf("zlib end error\n");
-    return 1;
-  } else if (rv == TS_ERR_BADMODE) {
-    printf("bad mode error\n");
-    return 1;
-  } else {
-    printf("unknown return from ts_close: %d\n", rv);
-  }
+  if (rv == 0)
+    printf("OK\n");
+  else
+    return ptserr("ts_close", rv, tsp);
   
   return 0;
 }

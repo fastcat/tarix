@@ -1,0 +1,13 @@
+Tarix now supports compressing the tar file with zlib (a.k.a. gzip).  To
+enable this mode, use the -z option, and optionally a compression level.
+
+Tarix will specially construct the output so that it is compatible with
+gzip, but also so that tarix can have sufficient random access within
+the file to perform selective extraction.
+
+When extracting the compressed archive, you can either decompress it first,
+or use the -z option to work directly with the compressed archive.
+
+Even though the compressed archive will be compatible with gzip, you will
+not be able to simply gzip an archive and use it with tarix.  Gzip won't
+include the synchronization points tarix needs for random access.

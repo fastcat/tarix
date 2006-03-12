@@ -10,7 +10,7 @@ OBJECTS=$(patsubst src/%.c,obj/%.o,${SOURCES})
 LIB_OBJS=$(patsubst src/%.c,obj/%.o,${LIB_SRCS})
 DEPS=$(patsubst src/%.c,obj/%.d,${SOURCES})
 
-T_SOURCES=test/t_tws.c test/t_trs.c
+T_SOURCES=test/t_tws.c test/t_trs.c test/t_tsk.c
 T_OBJECTS=$(patsubst test/%.c,obj/test/%.o,${T_SOURCES})
 T_DEPS=$(patsubst test/%.c,obj/test/%.d,${T_SOURCES})
 T_TARGETS=$(patsubst test/%.c,bin/test/%,${T_SOURCES})
@@ -23,7 +23,7 @@ INSTBASE=/usr/local
 
 .PHONY :: all dep build_test
 
-all : ${TARGET} build_test
+all : ${TARGET}
 
 dep : ${DEPS}
 
@@ -34,7 +34,7 @@ test-%: bin/test/t_%
 	@if [ -f test/t_$*.sh ]; then test/t_$*.sh ; else $< ; fi
 	@echo Testing: $* Done
 
-test: $(patsubst bin/test/t_%,test-%,${T_TARGETS})
+test: build_test $(patsubst bin/test/t_%,test-%,${T_TARGETS})
 
 ${OBJECTS} ${DEPS} : obj/.d bin/.d
 
