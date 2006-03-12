@@ -82,13 +82,13 @@ int process_deflate(t_streamp tsp, int flush) {
 
   tsp->zlib_err = deflate(zsp, flush);
   
-  /* update crc32 and raw_bytes */
   int inbytes_used = zsp->next_in - old_ni;
-  tsp->crc32 = update_crc(tsp->crc32, old_ni, inbytes_used);
-  tsp->raw_bytes += inbytes_used;
   
-  /* reconfigure the input buffer */
   if (inbytes_used > 0) {
+    /* update crc32 and raw_bytes */
+    tsp->crc32 = update_crc(tsp->crc32, old_ni, inbytes_used);
+    tsp->raw_bytes += inbytes_used;
+    /* reconfigure the input buffer */
     memmove(tsp->inbuf, zsp->next_in, zsp->avail_in);
     zsp->next_in = tsp->inbuf;
   }
@@ -119,9 +119,11 @@ int process_inflate(t_streamp tsp, int flush) {
   
   int nread = 0;
   
-  /* fill input buffer if needed */
+  /* fill input buffer if it's empty */
   if (zsp->avail_in == 0) {
+    /* how many blocks can we read? */
     int eread = tsp->bufsz - zsp->avail_in;
+    eread -= eread % tsp->blksz;
     nread = read(tsp->fd, zsp->next_in + zsp->avail_in, eread);
     if (nread < 0) {
       perror("read block");
@@ -137,17 +139,17 @@ int process_inflate(t_streamp tsp, int flush) {
 
   tsp->zlib_err = inflate(zsp, flush);
   
-  /* update crc32 and byte counters */
   int inbytes_used = zsp->next_in - old_ni;
-  tsp->crc32 = update_crc(tsp->crc32, old_ni, inbytes_used);
+  int obytes_gend = zsp->next_out - old_no;
+  /* update crc32 and byte counters */
+  tsp->crc32 = update_crc(tsp->crc32, old_no, obytes_gend);
   tsp->zlib_bytes += inbytes_used;
-  tsp->raw_bytes += zsp->next_out - old_no;
+  tsp->raw_bytes += obytes_gend;
   
   /* reconfigure the input buffer */
   if (inbytes_used > 0) {
     memmove(tsp->inbuf, zsp->next_in, zsp->avail_in);
     zsp->next_in = tsp->inbuf;
-    zsp->avail_in = tsp->bufsz;
   }
   
   return nread;

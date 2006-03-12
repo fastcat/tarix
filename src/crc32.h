@@ -1,3 +1,6 @@
+#ifndef __CRC32_H__
+#define __CRC32_H__
+
 /* crc32 code from RFC-1952 */
 
 /* Make the table for a fast CRC. */
@@ -20,3 +23,5 @@ unsigned long update_crc(unsigned long crc, unsigned char *buf, int len);
 
 /* Return the CRC of the bytes buf[0..len-1]. */
 unsigned long crc(unsigned char *buf, int len);
+
+#endif /* __CRC32_H__ */

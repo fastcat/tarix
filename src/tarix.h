@@ -28,7 +28,6 @@
 int create_index(const char *indexfile, const char *tarfile,
 	int pass_through, int zlib_level);
 int extract_files(const char *indexfile, const char *tarfile, int use_mt,
-	int zlib_level,
-	int argc, char *argv[], int firstarg);
+	int zlib_level, int argc, char *argv[], int firstarg);
 
 #endif /* __TARIX_H__ */
