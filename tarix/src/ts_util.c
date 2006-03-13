@@ -93,9 +93,18 @@ int process_deflate(t_streamp tsp, int flush) {
     zsp->next_in = tsp->inbuf;
   }
   
-  if (zsp->avail_out == 0 || flush != Z_NO_FLUSH) {
+  /* write if we have at least a block of data, or a flush is requested */
+  int ready2write = tsp->bufsz - zsp->avail_out;
+  
+  if (ready2write == 0)
+    return 0;
+  
+  if (ready2write > tsp->blksz || flush != Z_NO_FLUSH) {
     /* flush the buffer to output fd */
-    int ewrite = tsp->bufsz - zsp->avail_out;
+    int ewrite = ready2write;
+    /* only write whole blocks normally */
+    if (flush == Z_NO_FLUSH)
+      ewrite -= ewrite % tsp->blksz;
     int nwrite = write(tsp->fd, tsp->outbuf, ewrite);
     if (nwrite != ewrite)
       perror(nwrite >= 0 ? "partial block write" : "write block");

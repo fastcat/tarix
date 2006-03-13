@@ -196,7 +196,10 @@ int create_index(const char *indexfile, const char *tarfile,
     
     if (pass_through) {
       if ((tmp = ts_write(tsp, inbuf.buffer, TARBLKSZ)) < TARBLKSZ) {
-        perror((tmp >= 0) ? "partial block write" : "write block");
+        if (tmp == TS_ERR_ZLIB)
+          fprintf(stderr, "zlib error: %s\n", tsp->zsp->msg);
+        else
+          perror((tmp >= 0) ? "partial block write" : "write block");
         return 2;
       }
     }
