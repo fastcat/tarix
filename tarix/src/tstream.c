@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "portability.h"
 #include "tstream.h"
 #include "ts_util.h"
 #include "tar.h"
@@ -45,10 +46,10 @@ static int do_seek(t_streamp tsp, off64_t offset) {
   offset += tsp->baseoffset;
   if (tsp->usemt) {
     int tmp = p_mt_setpos(tsp->fd, offset / tsp->blksz);
+    int remainder = offset % tsp->blksz;
     if (tmp < 0)
       return tmp;
     /* consume partial block if necessary */
-    int remainder = offset % tsp->blksz;
     if (remainder != 0) {
       Bytef buf[TARBLKSZ];
       while (remainder > 0) {
@@ -62,7 +63,7 @@ static int do_seek(t_streamp tsp, off64_t offset) {
     }
     return 0;
   } else {
-    off64_t lsret = lseek64(tsp->fd, offset, SEEK_SET);
+    off64_t lsret = p_lseek64(tsp->fd, offset, SEEK_SET);
     return lsret < 0 ? -1 : 0;
   }
 }
@@ -74,7 +75,7 @@ static off64_t do_tell(t_streamp tsp) {
       return -1;
     return pos * tsp->blksz;
   } else {
-    pos = lseek64(tsp->fd, 0, SEEK_CUR);
+    pos = p_lseek64(tsp->fd, 0, SEEK_CUR);
     return pos;
   }
 }
@@ -163,6 +164,7 @@ t_streamp init_trs(t_streamp tsp, int fd, int usemt, int blksz,
 
   /* if zlib asked for, set it up */
   if (zlib_level > 0) {
+   	int gzhrv;
   
     /* negative window bits suppress zlib wrapper */
     tsp->zlib_err = inflateInit2(tsp->zsp, -MAX_WBITS);
@@ -170,7 +172,7 @@ t_streamp init_trs(t_streamp tsp, int fd, int usemt, int blksz,
       return tsp;
     
     /* read the gzip header from the stream */
-    int gzhrv = read_gz_header(tsp);
+    gzhrv = read_gz_header(tsp);
     if (gzhrv != 0)
       tsp->zlib_err = Z_VERSION_ERROR;
   }
@@ -179,6 +181,9 @@ t_streamp init_trs(t_streamp tsp, int fd, int usemt, int blksz,
 }
 
 int ts_write(t_streamp tsp, void *buf, int len) {
+	int left;
+	Bytef *cur;
+	z_streamp zsp;
   
   /* sanity check */
   if (tsp == NULL || tsp->mode != TS_WRITE)
@@ -195,11 +200,13 @@ int ts_write(t_streamp tsp, void *buf, int len) {
   
   /* dump into zlib buffers */
   
-  int left = len;
-  Bytef *cur = buf;
-  z_streamp zsp = tsp->zsp;
+  left = len;
+  cur = buf;
+  zsp = tsp->zsp;
   
   while (left > 0) {
+  	int nwrite;
+  	
     /* if there is room in the input buffer, put some data in */
     if (zsp->avail_in < tsp->bufsz) {
       /* how many bytes to stick in the input buffer */
@@ -214,7 +221,7 @@ int ts_write(t_streamp tsp, void *buf, int len) {
     }
     
     /* run a deflate cycle */
-    int nwrite = process_deflate(tsp, Z_NO_FLUSH);
+    nwrite = process_deflate(tsp, Z_NO_FLUSH);
     if (nwrite < 0)
       return nwrite;
     if (tsp->zlib_err != Z_OK)
@@ -225,18 +232,22 @@ int ts_write(t_streamp tsp, void *buf, int len) {
 }
 
 int ts_read(t_streamp tsp, void *buf, int len) {
+	z_streamp zsp;
+	int left;
+	void *cur;
+	
   if (tsp == NULL || tsp->mode != TS_READ)
     return TS_ERR_BADMODE;
   
-  z_streamp zsp = tsp->zsp;
+  zsp = tsp->zsp;
   
   /* non-zlib: straight read */
   if (zsp == NULL)
     return read(tsp->fd, buf, len);
   
   /* zlib read */
-  int left = len;
-  void *cur = buf;
+  left = len;
+  cur = buf;
   
   while (left > 0) {
     /* run an inflate cycle, flush as much to output buffer as possible */
@@ -273,11 +284,12 @@ int ts_read(t_streamp tsp, void *buf, int len) {
 }
 
 off64_t ts_checkpoint(t_streamp tsp) {
+	z_streamp zsp;
   
   if (tsp == NULL || tsp->mode != TS_WRITE)
     return TS_ERR_BADMODE;
   
-  z_streamp zsp = tsp->zsp;
+  zsp = tsp->zsp;
   
   /* non-zlib: return basic offset */
   if (zsp == NULL)
@@ -301,6 +313,8 @@ off64_t ts_checkpoint(t_streamp tsp) {
 }
 
 int ts_seek(t_streamp tsp, off64_t offset) {
+	z_streamp zsp;
+	
   if (tsp == NULL || tsp->mode != TS_READ)
     return TS_ERR_BADMODE;
   
@@ -312,7 +326,7 @@ int ts_seek(t_streamp tsp, off64_t offset) {
   
   /* TODO: check for the sync point magic right before the offset? */
   
-  z_streamp zsp = tsp->zsp;
+  zsp = tsp->zsp;
   if (zsp != NULL) {
     /* reset buffers */
     init_ts_buffers(tsp);
@@ -348,6 +362,8 @@ int ts_close(t_streamp tsp, int dofree) {
     return 0;
   } else if (tsp->mode == TS_WRITE) {
     int ret = 0;
+    int ngf;
+    
     if (tsp->zsp != NULL) {
       /* flush zlib */
       while (1) {
@@ -365,7 +381,7 @@ int ts_close(t_streamp tsp, int dofree) {
       
       tsp->zlib_err = deflateEnd(tsp->zsp);
       
-      int ngf = put_gz_footer(tsp);
+      ngf = put_gz_footer(tsp);
       if (ngf != GZ_FOOTER_LEN)
         return -1;
       

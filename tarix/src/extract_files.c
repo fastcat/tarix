@@ -25,7 +25,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "portability.h"
 #include "tar.h"
 #include "tarix.h"
 #include "tstream.h"
@@ -126,7 +125,7 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
         }
         gotheader = 1;
       } else {
-        int fnpos, ssret;
+        int fnpos, ssret, extract = 0;
         if (use_new) {
           ssret = sscanf(linebuf, "%ld %lld %ld %n", &ioffset, &zoffset,
             &ilen, &fnpos);
@@ -141,7 +140,6 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
         iparse = linebuf + fnpos;
 
         /* take action on the line */
-        int extract = 0;
         for (n = firstarg; n < argc; ++n) {
           if (strncmp(argv[n], iparse, arglens[n-firstarg]) == 0) {
             extract = 1;

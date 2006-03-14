@@ -26,7 +26,6 @@
 
 #include "tar.h"
 #include "tarix.h"
-#include "portability.h"
 #include "tstream.h"
 
 enum blocks_type {
@@ -166,7 +165,8 @@ int create_index(const char *indexfile, const char *tarfile,
         case 'L':
           blocks_left_type = BT_LONGNAME;
           break;
-        default:
+        default: {
+          unsigned long reclen;
           /* anything else we treat as filedata, which triggers writing
            * a record, but whose data is ignored */
           blocks_left_type = BT_FILEDATA;
@@ -182,8 +182,8 @@ int create_index(const char *indexfile, const char *tarfile,
               strcat(strcpy(fullfname, inbuf.header.prefix),
                 inbuf.header.name);
           }
-          unsigned long reclen = blocknum - filestart + 1 + blocks_left;
-                                 /* pre-header         hdr     data */
+          reclen = blocknum - filestart + 1 + blocks_left;
+                   /* pre-header         hdr     data */
           if (use_new) {
             fprintf(indexf, "%ld %lld %ld %s\n", filestart, cp_offset,
               reclen, fullfname);
@@ -191,6 +191,7 @@ int create_index(const char *indexfile, const char *tarfile,
             fprintf(indexf, "%ld %ld %s\n", filestart, reclen, fullfname);
           }
           break;
+        }
       }
     }
     

@@ -38,6 +38,9 @@ static void lsb_buf(Bytef *buf, unsigned long int32) {
 
 void put_gz_header(t_streamp tsp) {
   Bytef *obuf = tsp->zsp->next_out;
+  time_t now;
+  const char *fcomment = "TARIX COMPRESSED v" TARIX_FMT_VERSION_NEW;
+  int nbytes;
   
   /* magic */
   obuf[0] = 0x1f;
@@ -48,27 +51,29 @@ void put_gz_header(t_streamp tsp) {
   /* note: we don't include a filename yet, see TODO above */
   obuf[3] = (1 << 4);
   /* mtime, force lsb */
-  time_t now = time(NULL);
+  now = time(NULL);
   lsb_buf(obuf + 4, now);
   /* XFL: might need to revisit this in case user tweaked compression */
   obuf[8] = 0;
   /* OS: unix */
   obuf[9] = 3;
   /* magic comment -- strlen + 1 bytes */
-  const char *fcomment = "TARIX COMPRESSED v" TARIX_FMT_VERSION_NEW;
   /* cast to remove signedness warning */
   strcpy((char*)obuf + 10, fcomment);
   /* update zsp */
-  int nbytes = 10 + strlen(fcomment) + 1;
+  nbytes = 10 + strlen(fcomment) + 1;
   tsp->zsp->next_out += nbytes;
   tsp->zsp->avail_out -= nbytes;
 }
 
 int put_gz_footer(t_streamp tsp) {
   Bytef obuf[GZ_FOOTER_LEN];
+  int wr;
+  
   lsb_buf(obuf, tsp->crc32);
   lsb_buf(obuf + 4, (unsigned long)(tsp->raw_bytes & 0xffffffff));
-  int wr = write(tsp->fd, obuf, 8);
+  
+  wr = write(tsp->fd, obuf, 8);
   if (wr > 0)
     tsp->zlib_bytes += wr;
   return wr;
@@ -76,13 +81,14 @@ int put_gz_footer(t_streamp tsp) {
 
 int process_deflate(t_streamp tsp, int flush) {
   z_streamp zsp = tsp->zsp;
+  int inbytes_used, ready2write;
 
   /* save old pointer for crc calcs */
   Bytef *old_ni = zsp->next_in;
 
   tsp->zlib_err = deflate(zsp, flush);
   
-  int inbytes_used = zsp->next_in - old_ni;
+  inbytes_used = zsp->next_in - old_ni;
   
   if (inbytes_used > 0) {
     /* update crc32 and raw_bytes */
@@ -94,18 +100,18 @@ int process_deflate(t_streamp tsp, int flush) {
   }
   
   /* write if we have at least a block of data, or a flush is requested */
-  int ready2write = tsp->bufsz - zsp->avail_out;
+  ready2write = tsp->bufsz - zsp->avail_out;
   
   if (ready2write == 0)
     return 0;
   
   if (ready2write > tsp->blksz || flush != Z_NO_FLUSH) {
     /* flush the buffer to output fd */
-    int ewrite = ready2write;
+    int ewrite = ready2write, nwrite;
     /* only write whole blocks normally */
     if (flush == Z_NO_FLUSH)
       ewrite -= ewrite % tsp->blksz;
-    int nwrite = write(tsp->fd, tsp->outbuf, ewrite);
+    nwrite = write(tsp->fd, tsp->outbuf, ewrite);
     if (nwrite != ewrite)
       perror(nwrite >= 0 ? "partial block write" : "write block");
     if (nwrite > 0) {
@@ -125,8 +131,8 @@ int process_deflate(t_streamp tsp, int flush) {
 
 int process_inflate(t_streamp tsp, int flush) {
   z_streamp zsp = tsp->zsp;
-  
-  int nread = 0;
+  int nread = 0, inbytes_used, obytes_gend;
+  Bytef *old_ni, *old_no;
   
   /* fill input buffer if it's empty */
   if (zsp->avail_in == 0) {
@@ -143,13 +149,13 @@ int process_inflate(t_streamp tsp, int flush) {
   }
 
   /* save old pointer for crc calcs */
-  Bytef *old_ni = zsp->next_in;
-  Bytef *old_no = zsp->next_out;
+  old_ni = zsp->next_in;
+  old_no = zsp->next_out;
 
   tsp->zlib_err = inflate(zsp, flush);
   
-  int inbytes_used = zsp->next_in - old_ni;
-  int obytes_gend = zsp->next_out - old_no;
+  inbytes_used = zsp->next_in - old_ni;
+  obytes_gend = zsp->next_out - old_no;
   /* update crc32 and byte counters */
   tsp->crc32 = update_crc(tsp->crc32, old_no, obytes_gend);
   tsp->zlib_bytes += inbytes_used;
@@ -165,7 +171,11 @@ int process_inflate(t_streamp tsp, int flush) {
 }
 
 int read_gz_header(t_streamp tsp) {
+  char *signature = "TARIX COMPRESSED v" TARIX_FMT_VERSION_NEW;
+  int p = 0;
+  char c;
   Bytef buf[10];
+
   int nread = read(tsp->fd, buf, 10);
   if (nread < 0)
     return nread;
@@ -180,9 +190,6 @@ int read_gz_header(t_streamp tsp) {
     return 1;
   
   /* check comment magic */
-  char *signature = "TARIX COMPRESSED v" TARIX_FMT_VERSION_NEW;
-  int p = 0;
-  char c;
   /* less than or equal to consume null terminator too */
   while (p <= strlen(signature)) {
     if (read(tsp->fd, &c, 1) != 1)

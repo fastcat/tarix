@@ -44,19 +44,20 @@ void ptserr(const char *msg, off64_t rv, t_streamp tsp) {
 }
 
 int main (int argc, char **argv) {
-  int fd;
+  int fd, rv;
+  t_streamp tsp;
+  off64_t cpoff;
+  
   if ((fd = open(OFILE, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
     perror("open output");
     return 1;
   }
   
-  t_streamp tsp = init_tws(NULL, fd, 0, 0, 3);
+  tsp = init_tws(NULL, fd, 0, 0, 3);
   if (tsp->zlib_err != Z_OK) {
     printf("zlib init error: %d\n", tsp->zlib_err);
     return 1;
   }
-  
-  int rv;
   
   rv = ts_write(tsp, "Hello World\n", 12);
   if (rv < 0) {
@@ -67,7 +68,7 @@ int main (int argc, char **argv) {
     return 1;
   }
   
-  off64_t cpoff = ts_checkpoint(tsp);
+  cpoff = ts_checkpoint(tsp);
   if (cpoff < 0) {
     ptserr("ts_checkpoint", cpoff, tsp);
     return 1;
