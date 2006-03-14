@@ -17,7 +17,8 @@ T_TARGETS=$(patsubst test/%.c,bin/test/%,${T_SOURCES})
 
 CPPFLAGS=-Isrc -D_GNU_SOURCE
 CFLAGS=-Wall -Werror -g
-LDFLAGS=-lz
+# for cygwin, export LDFLAGS=-L/usr/bin
+LDFLAGS+=-lz
 CC=gcc
 INSTBASE=/usr/local
 
