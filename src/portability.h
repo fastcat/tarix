@@ -20,6 +20,8 @@
 #ifndef __PORTABILITY_H__
 #define __PORTABILITY_H__
 
+#include <unistd.h>
+
 #if defined(__FreeBSD__) /* on fbsd, all off_t are 64-bit */
 
 #define P_O_LARGEFILE 0
@@ -27,6 +29,8 @@
 typedef off_t off64_t;
 
 #else
+
+#include <sys/types.h>
 
 #define P_O_LARGEFILE O_LARGEFILE
 #define p_lseek64 lseek64

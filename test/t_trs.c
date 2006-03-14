@@ -45,7 +45,10 @@ void ptserr(const char *msg, off64_t rv, t_streamp tsp) {
 }
 
 int main (int argc, char **argv) {
-  int ofd, ifd;
+  int ofd, ifd, rv;
+  t_streamp tsp;
+  Bytef buf[1024];
+  
   if ((ifd = open(IFILE, O_RDONLY)) < 0) {
     perror("open input");
     return 1;
@@ -55,15 +58,11 @@ int main (int argc, char **argv) {
     return 1;
   }
   
-  t_streamp tsp = init_trs(NULL, ifd, 0, 0, 3);
+  tsp = init_trs(NULL, ifd, 0, 0, 3);
   if (tsp->zlib_err != Z_OK) {
     printf("zlib init error: %d\n", tsp->zlib_err);
     return 1;
   }
-  
-  int rv;
-  
-  Bytef buf[1024];
   
   rv = ts_read(tsp, buf, 1024);
   if (rv < 0) {
