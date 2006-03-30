@@ -40,7 +40,7 @@ void ptserr(const char *msg, off64_t rv, t_streamp tsp) {
   } else if (rv == -1) {
     perror("zlib read");
   } else {
-    printf("unknown error: %lld\n", rv);
+    printf("unknown error: %lld\n", (long long)rv);
   }
 }
 

@@ -40,7 +40,7 @@ int ptserr(const char *msg, off64_t rv, t_streamp tsp) {
   } else if (rv == -1) {
     perror("i/o error");
   } else {
-    printf("unknown error from %s: %lld\n", msg, rv);
+    printf("unknown error from %s: %lld\n", msg, (long long)rv);
   }
   return 1;
 }

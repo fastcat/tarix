@@ -127,8 +127,11 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
       } else {
         int fnpos, ssret, extract = 0;
         if (use_new) {
-          ssret = sscanf(linebuf, "%ld %lld %ld %n", &ioffset, &zoffset,
+          /* games with longlong to avoid warnings on 64bit */
+          long long lltmp;
+          ssret = sscanf(linebuf, "%ld %lld %ld %n", &ioffset, &lltmp,
             &ilen, &fnpos);
+          zoffset = lltmp;
         } else {
           ssret = sscanf(linebuf, "%ld %ld %n", &ioffset, &ilen, &fnpos);
         }
