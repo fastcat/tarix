@@ -105,7 +105,8 @@ int process_deflate(t_streamp tsp, int flush) {
   if (ready2write == 0)
     return 0;
   
-  if (ready2write > tsp->blksz || flush != Z_NO_FLUSH) {
+  /* flush buffer if it's near full, or it was requested */
+  if (zsp->avail_out < tsp->blksz || flush != Z_NO_FLUSH) {
     /* flush the buffer to output fd */
     int ewrite = ready2write, nwrite;
     /* only write whole blocks normally */

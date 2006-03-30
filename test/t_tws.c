@@ -39,7 +39,7 @@ void ptserr(const char *msg, off64_t rv, t_streamp tsp) {
   } else if (rv == -1) {
     perror("zlib write");
   } else {
-    printf("unknown error: %lld\n", rv);
+    printf("unknown error: %lld\n", (long long)rv);
   }
 }
 
@@ -73,7 +73,7 @@ int main (int argc, char **argv) {
     ptserr("ts_checkpoint", cpoff, tsp);
     return 1;
   }
-  printf("checkpointed at output byte 0x%llx\n", cpoff);
+  printf("checkpointed at output byte 0x%llx\n", (long long)cpoff);
   
   rv = ts_write(tsp, "Hello World\n", 12);
   if (rv < 0) {

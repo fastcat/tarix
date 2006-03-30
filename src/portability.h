@@ -22,6 +22,7 @@
 
 #include <unistd.h>
 #include <sys/types.h>
+#include <limits.h>
 
 #if defined(__FreeBSD__) /* on fbsd, all off_t are 64-bit */
 
