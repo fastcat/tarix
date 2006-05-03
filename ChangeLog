@@ -1,3 +1,10 @@
+1.0.2
+	* Improved error messages
+	* Fix a nasty data corruption bug
+
+1.0.1
+	* Bug and portability fixes
+
 1.0
 	* Zlib support
 
