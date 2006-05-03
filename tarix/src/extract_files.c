@@ -50,7 +50,7 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
   int linelen;
   char *iparse;
   unsigned long ioffset, ilen;
-  /* curpose always tracks block offsets */
+  /* curpos always tracks block offsets */
   off64_t zoffset, destoff, curpos = 0;
   int gotheader = 0;
   char passbuf[TARBLKSZ];
@@ -177,7 +177,7 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
                 ptserror("read tarfile", n, tsp);
               return 2;
             }
-            DMSG("read a rec, now at %ld, %ld left\n", curpos, ilen-1);
+            DMSG("read a rec, now at %lld, %ld left\n", (long long)curpos, ilen-1);
             ++curpos;
             if ((n = write(outfd, passbuf, TARBLKSZ)) < TARBLKSZ) {
               perror((n > 0) ? "partial tarfile write" : "write tarfile");
