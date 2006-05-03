@@ -32,19 +32,6 @@
 #define IFILE "bin/test/data.gz"
 #define OFILE "bin/test/data"
 
-int ptserr(const char *msg, off64_t rv, t_streamp tsp) {
-  if (rv == TS_ERR_ZLIB) {
-    printf("zlib error: %d\n  %s\n", tsp->zlib_err, tsp->zsp->msg);
-  } else if (rv == TS_ERR_BADMODE) {
-    printf("invalid mode\n");
-  } else if (rv == -1) {
-    perror("i/o error");
-  } else {
-    printf("unknown error from %s: %lld\n", msg, (long long)rv);
-  }
-  return 1;
-}
-
 int main (int argc, char **argv) {
   int ofd, ifd, rv;
   t_streamp tsp;
@@ -67,13 +54,16 @@ int main (int argc, char **argv) {
   
   /* 30 is the observed checkpoitn address */
   rv = ts_seek(tsp, 0x30);
-  if (rv < 0)
-    return ptserr("ts_seek", rv, tsp);
+  if (rv < 0) {
+    ptserror("ts_seek", rv, tsp);
+    return 1;
+  }
   
   rv = ts_read(tsp, buf, 1024);
-  if (rv < 0)
-    return ptserr("ts_read", rv, tsp);
-  else {
+  if (rv < 0) {
+    ptserror("ts_read", rv, tsp);
+    return 1;
+  } else {
     rv = write(ofd, buf, rv);
     if (rv < 0) {
       perror("write");
@@ -84,8 +74,10 @@ int main (int argc, char **argv) {
   rv = ts_close(tsp, 1);
   if (rv == 0)
     printf("OK\n");
-  else
-    return ptserr("ts_close", rv, tsp);
+  else {
+    ptserror("ts_close", rv, tsp);
+    return 1;
+  }
   
   return 0;
 }

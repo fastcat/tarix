@@ -17,6 +17,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -164,7 +166,7 @@ t_streamp init_trs(t_streamp tsp, int fd, int usemt, int blksz,
 
   /* if zlib asked for, set it up */
   if (zlib_level > 0) {
-   	int gzhrv;
+     int gzhrv;
   
     /* negative window bits suppress zlib wrapper */
     tsp->zlib_err = inflateInit2(tsp->zsp, -MAX_WBITS);
@@ -181,9 +183,9 @@ t_streamp init_trs(t_streamp tsp, int fd, int usemt, int blksz,
 }
 
 int ts_write(t_streamp tsp, void *buf, int len) {
-	int left;
-	Bytef *cur;
-	z_streamp zsp;
+  int left; /* how many bytes in buf left to process? */
+  Bytef *cur; /* pointer to next byte to process in buf */
+  z_streamp zsp;
   
   /* sanity check */
   if (tsp == NULL || tsp->mode != TS_WRITE)
@@ -200,13 +202,14 @@ int ts_write(t_streamp tsp, void *buf, int len) {
   
   /* dump into zlib buffers */
   
+  /* start write processing at the beginning of the buffer */
   left = len;
   cur = buf;
   zsp = tsp->zsp;
   
   while (left > 0) {
-  	int nwrite;
-  	
+    int nwrite;
+    
     /* if there is room in the input buffer, put some data in */
     if (zsp->avail_in < tsp->bufsz) {
       /* how many bytes to stick in the input buffer */
@@ -214,6 +217,7 @@ int ts_write(t_streamp tsp, void *buf, int len) {
       if (toadd > left)
         toadd = left;
       
+      /* copy our bytes to the end of the input buffer */
       memcpy(zsp->next_in + zsp->avail_in, cur, toadd);
       zsp->avail_in += toadd;
       cur += toadd;
@@ -232,10 +236,10 @@ int ts_write(t_streamp tsp, void *buf, int len) {
 }
 
 int ts_read(t_streamp tsp, void *buf, int len) {
-	z_streamp zsp;
-	int left;
-	void *cur;
-	
+  z_streamp zsp;
+  int left;
+  void *cur;
+  
   if (tsp == NULL || tsp->mode != TS_READ)
     return TS_ERR_BADMODE;
   
@@ -257,7 +261,7 @@ int ts_read(t_streamp tsp, void *buf, int len) {
     if (tsp->zlib_err != Z_OK && tsp->zlib_err != Z_STREAM_END)
       return TS_ERR_ZLIB;
     
-    /* pull data from the zlib output buffer into our buffer */
+    /* if there is anything available in the zlib output buffer */
     if (zsp->avail_out < tsp->bufsz) {
       /* the available data is the buffer size minus the unused part */
       int bytesavail = tsp->bufsz - zsp->avail_out;
@@ -284,7 +288,7 @@ int ts_read(t_streamp tsp, void *buf, int len) {
 }
 
 off64_t ts_checkpoint(t_streamp tsp) {
-	z_streamp zsp;
+  z_streamp zsp;
   
   if (tsp == NULL || tsp->mode != TS_WRITE)
     return TS_ERR_BADMODE;
@@ -313,8 +317,8 @@ off64_t ts_checkpoint(t_streamp tsp) {
 }
 
 int ts_seek(t_streamp tsp, off64_t offset) {
-	z_streamp zsp;
-	
+  z_streamp zsp;
+  
   if (tsp == NULL || tsp->mode != TS_READ)
     return TS_ERR_BADMODE;
   
@@ -395,5 +399,18 @@ int ts_close(t_streamp tsp, int dofree) {
     return ret;
   } else {
     return TS_ERR_BADMODE;
+  }
+}
+
+void ptserror(const char *msg, off64_t rv, t_streamp tsp) {
+  if (rv == TS_ERR_ZLIB) {
+    fprintf(stderr, "%s: zlib error: %d: %s\n", msg, tsp->zlib_err,
+      tsp->zsp->msg);
+  } else if (rv == TS_ERR_BADMODE) {
+    fprintf(stderr, "%s: invalid tstream mode\n", msg);
+  } else if (rv == -1) {
+    fprintf(stderr, "%s: zlib i/o: %s\n", msg, strerror(errno));
+  } else {
+    fprintf(stderr, "unknown error: %lld\n", (long long)rv);
   }
 }

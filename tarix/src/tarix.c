@@ -24,7 +24,7 @@
                      
 #include "tarix.h"
 
-#define OPTSTR "himf:t:xz123456789"
+#define OPTSTR "himf:t:xz123456789d"
 
 int show_help() {
   fprintf(stderr,
@@ -120,6 +120,7 @@ int main(int argc, char *argv[]) {
   int use_mt = 0;
   int use_zlib = 0;
   int zlib_level = 3;
+  int debug_messages = 0;
   char *tenv = getenv("TARIX");
   
   /* parse opts, do right thing */
@@ -164,6 +165,9 @@ int main(int argc, char *argv[]) {
       case '9':
         zlib_level = opt - '0';
         break;
+      case 'd':
+        debug_messages = 1;
+        break;
       case ':':
         fprintf(stderr, "Missing arg to '%c' option\n", optopt);
         show_help();
@@ -191,12 +195,13 @@ int main(int argc, char *argv[]) {
   
   switch (action) {
     case CREATE_INDEX:
-      return create_index(indexfile, tarfile, pass_through, zlib_level);
+      return create_index(indexfile, tarfile, pass_through, zlib_level,
+        debug_messages);
     case SHOW_HELP:
       return show_help();
     case EXTRACT_FILES:
       return extract_files(indexfile, tarfile, use_mt, zlib_level,
-        argc, argv, optind);
+        debug_messages, argc, argv, optind);
     default:
       fprintf(stderr, "EEK! unknown action!\n");
       return 1;

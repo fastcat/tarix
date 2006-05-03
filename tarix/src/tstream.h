@@ -144,4 +144,9 @@ int ts_seek(t_streamp tsp, off64_t offset);
  */
 int ts_close(t_streamp tsp, int dofree);
 
+/* Util function like perror, but handles multistate errors from tstream
+ * functions
+ */
+void ptserror(const char *msg, off64_t rv, t_streamp tsp);
+
 #endif /* __TSTREAM_H__ */

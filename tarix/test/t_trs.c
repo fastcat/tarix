@@ -32,18 +32,6 @@
 #define IFILE "bin/test/data.gz"
 #define OFILE "bin/test/data"
 
-void ptserr(const char *msg, off64_t rv, t_streamp tsp) {
-  if (rv == TS_ERR_ZLIB) {
-    printf("zlib inflate error: %d\n  %s\n", tsp->zlib_err, tsp->zsp->msg);
-  } else if (rv == TS_ERR_BADMODE) {
-    printf("invalid mode\n");
-  } else if (rv == -1) {
-    perror("zlib read");
-  } else {
-    printf("unknown error: %lld\n", (long long)rv);
-  }
-}
-
 int main (int argc, char **argv) {
   int ofd, ifd, rv;
   t_streamp tsp;
@@ -66,7 +54,7 @@ int main (int argc, char **argv) {
   
   rv = ts_read(tsp, buf, 1024);
   if (rv < 0) {
-    ptserr("ts_read", rv, tsp);
+    ptserror("ts_read", rv, tsp);
     return 1;
   } else {
     rv = write(ofd, buf, rv);
