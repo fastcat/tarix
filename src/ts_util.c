@@ -99,7 +99,7 @@ int process_deflate(t_streamp tsp, int flush) {
     zsp->next_in = tsp->inbuf;
   }
   
-  /* write if we have at least a block of data, or a flush is requested */
+  /* amount ready to write is the buffer size minus the amount unused */
   ready2write = tsp->bufsz - zsp->avail_out;
   
   if (ready2write == 0)
@@ -107,20 +107,23 @@ int process_deflate(t_streamp tsp, int flush) {
   
   /* flush buffer if it's near full, or it was requested */
   if (zsp->avail_out < tsp->blksz || flush != Z_NO_FLUSH) {
-    /* flush the buffer to output fd */
-    int ewrite = ready2write, nwrite;
-    /* only write whole blocks normally */
+    int ewrite = ready2write;
+    int nwrite;
+    /* if no specific flush requested, make ewrite an even multiple of the
+     * block size */
     if (flush == Z_NO_FLUSH)
       ewrite -= ewrite % tsp->blksz;
     nwrite = write(tsp->fd, tsp->outbuf, ewrite);
     if (nwrite != ewrite)
       perror(nwrite >= 0 ? "partial block write" : "write block");
     if (nwrite > 0) {
-      /* if nwrite == ewrite, this will no-op out and the next_out
-       * assignment will become next_out = outbuf
-       */
-      memmove(tsp->outbuf, tsp->outbuf + nwrite, ewrite - nwrite);
-      zsp->next_out = tsp->outbuf + ewrite - nwrite;
+      /* shift out the now flushed part of the buffer.  under some common
+       * circumstances, this will become a no-op, as the amount to move will
+       * be zero.  it's important that the amounts be based on ready2write,
+       * not ewrite, since we need to move all bytes that are used but not
+       * written */
+      memmove(tsp->outbuf, tsp->outbuf + nwrite, ready2write - nwrite);
+      zsp->next_out = tsp->outbuf + ready2write - nwrite;
       zsp->avail_out += nwrite;
       tsp->zlib_bytes += nwrite;
     }
@@ -137,8 +140,9 @@ int process_inflate(t_streamp tsp, int flush) {
   
   /* fill input buffer if it's empty */
   if (zsp->avail_in == 0) {
-    /* how many blocks can we read? */
+    /* how many bytes can we read? */
     int eread = tsp->bufsz - zsp->avail_in;
+    /* make it a multiple of the block size */
     eread -= eread % tsp->blksz;
     nread = read(tsp->fd, zsp->next_in + zsp->avail_in, eread);
     if (nread < 0) {

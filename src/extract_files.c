@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "debug.h"
 #include "tar.h"
 #include "tarix.h"
 #include "tstream.h"
@@ -37,7 +38,8 @@ struct index_entry
 };
 
 int extract_files(const char *indexfile, const char *tarfile, int use_mt,
-    int zlib_level, int argc, char *argv[], int firstarg) {
+    int zlib_level, int debug_messages, int argc, char *argv[],
+    int firstarg) {
   int *arglens;
   int n, nread;
   char *linebuf = (char*)malloc(TARBLKSZ);
@@ -135,9 +137,10 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
         } else {
           ssret = sscanf(linebuf, "%ld %ld %n", &ioffset, &ilen, &fnpos);
         }
-        if (ssret != 3) {
-          fprintf(stderr, "index format error: v%d expects 3, got %d\n",
-            version, ssret);
+        n = use_new ? 3 : 2;
+        if (ssret != n) {
+          fprintf(stderr, "index format error: v%d expects %d, got %d\n",
+            version, n, ssret);
           return 1;
         }
         iparse = linebuf + fnpos;
@@ -150,29 +153,37 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
           }
         }
         if (extract) {
+          DMSG("extracting %s\n", iparse);
           /* seek to the record start and then pass the record through */
           /* don't actually seek if we're already there */
           if (curpos != ioffset) {
             destoff = zlib_level ? zoffset : (off64_t)ioffset * TARBLKSZ;
+            DMSG("seeking to %lld\n", (long long)destoff);
             if (ts_seek(tsp, destoff) != 0) {
               fprintf(stderr, "seek error\n");
               return 1;
             }
             curpos = ioffset;
           }
+          DMSG("reading %ld records\n", ilen);
           /* this destroys ilen, but that's ok since we're only gonna
            * extract the file once
            */
           for (; ilen > 0; --ilen) {
             if ((n = ts_read(tsp, passbuf, TARBLKSZ)) < TARBLKSZ) {
-              perror((n > 0) ? "partial tarfile read" : "read tarfile");
+              if (n >= 0)
+                perror("partial tarfile read");
+              else
+                ptserror("read tarfile", n, tsp);
               return 2;
             }
+            DMSG("read a rec, now at %ld, %ld left\n", curpos, ilen-1);
             ++curpos;
             if ((n = write(outfd, passbuf, TARBLKSZ)) < TARBLKSZ) {
               perror((n > 0) ? "partial tarfile write" : "write tarfile");
               return 2;
             }
+            DMSG("wrote rec\n");
           }
         } /* if extract */
       } /* if gotheader */

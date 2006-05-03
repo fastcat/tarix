@@ -31,18 +31,6 @@
 
 #define OFILE "bin/test/data.gz"
 
-void ptserr(const char *msg, off64_t rv, t_streamp tsp) {
-  if (rv == TS_ERR_ZLIB) {
-    printf("zlib deflate error: %d\n", tsp->zlib_err);
-  } else if (rv == TS_ERR_BADMODE) {
-    printf("invalid mode\n");
-  } else if (rv == -1) {
-    perror("zlib write");
-  } else {
-    printf("unknown error: %lld\n", (long long)rv);
-  }
-}
-
 int main (int argc, char **argv) {
   int fd, rv;
   t_streamp tsp;
@@ -61,7 +49,7 @@ int main (int argc, char **argv) {
   
   rv = ts_write(tsp, "Hello World\n", 12);
   if (rv < 0) {
-    ptserr("ts_write 1", rv, tsp);
+    ptserror("ts_write 1", rv, tsp);
     return 1;
   } else if (rv != 12) {
     printf("write returned %d\n", rv);
@@ -70,14 +58,14 @@ int main (int argc, char **argv) {
   
   cpoff = ts_checkpoint(tsp);
   if (cpoff < 0) {
-    ptserr("ts_checkpoint", cpoff, tsp);
+    ptserror("ts_checkpoint", cpoff, tsp);
     return 1;
   }
   printf("checkpointed at output byte 0x%llx\n", (long long)cpoff);
   
   rv = ts_write(tsp, "Hello World\n", 12);
   if (rv < 0) {
-    ptserr("ts_write 2", rv, tsp);
+    ptserror("ts_write 2", rv, tsp);
     return 1;
   } else if (rv != 12) {
     printf("write returned %d\n", rv);

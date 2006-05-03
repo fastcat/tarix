@@ -17,18 +17,12 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __TARIX_H__
-#define __TARIX_H__
+#ifndef __DEBUG_H__
+#define __DEBUG_H__
 
-#define TARIX_FMT_VERSION_OLD "0"
-#define TARIX_FMT_VERSION_NEW "1"
-#define TARIX_VERSION "1.0.2"
-#define TARIX_DEF_OUTFILE "out.tarix"
+#define DMSG(f, ...) { \
+  if (debug_messages) \
+    fprintf(stderr, "DEBUG: " f, ##__VA_ARGS__); \
+}
 
-int create_index(const char *indexfile, const char *tarfile,
-  int pass_through, int zlib_level, int debug_messages);
-int extract_files(const char *indexfile, const char *tarfile, int use_mt,
-  int zlib_level, int debug_messages, int argc, char *argv[],
-  int firstarg);
-
-#endif /* __TARIX_H__ */
+#endif /* __DEBUG_H__ */

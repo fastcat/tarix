@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "debug.h"
 #include "tar.h"
 #include "tarix.h"
 #include "tstream.h"
@@ -35,7 +36,7 @@ enum blocks_type {
 };
 
 int create_index(const char *indexfile, const char *tarfile,
-    int pass_through, int zlib_level) {
+    int pass_through, int zlib_level, int debug_messages) {
   const char *headerstring;
   int headerlen;
   union tar_block inbuf;
@@ -126,6 +127,7 @@ int create_index(const char *indexfile, const char *tarfile,
             fullfname = realloc(fullfname, fullfname_sz);
           }
           strncat(fullfname, inbuf.buffer, TARBLKSZ);
+          DMSG("got long filename %s\n", fullfname);
           break;
         case BT_LONGLINK:
         case BT_FILEDATA:
@@ -144,12 +146,13 @@ int create_index(const char *indexfile, const char *tarfile,
         fullfname[0] = 0; /* clear file name for new one */
         /* checkpoint output stream */
         if (tsp != NULL) {
+          DMSG("cp before new rec\n");
           cp_offset = ts_checkpoint(tsp);
           if (cp_offset < 0) {
-            /* TODO: check for zlib errors */
-            perror("ts_checkpoint");
+            ptserror("ts_checkpoint", cp_offset, tsp);
             return 2;
           }
+          DMSG("cp done at %lld\n", (long long)cp_offset);
         }
       }
       
@@ -158,6 +161,7 @@ int create_index(const char *indexfile, const char *tarfile,
       blocks_left = size_tmp / 512;
       if (size_tmp % 512 > 0) /* get the extra partial block */
         ++blocks_left;
+      DMSG("have %llu blocks to pass\n", size_tmp);
       
       switch(inbuf.header.typeflag) {
         case 'K':
@@ -185,6 +189,7 @@ int create_index(const char *indexfile, const char *tarfile,
           }
           reclen = blocknum - filestart + 1 + blocks_left;
                    /* pre-header         hdr     data */
+          DMSG("got filename %s, reclen %ld\n", fullfname, reclen);
           if (use_new) {
             /* cast to longlong to avoid compiler warn on 64bit */
             fprintf(indexf, "%ld %lld %ld %s\n", filestart,
@@ -198,11 +203,14 @@ int create_index(const char *indexfile, const char *tarfile,
     }
     
     if (pass_through) {
+      DMSG("passing block %ld to tsp\n", blocknum);
       if ((tmp = ts_write(tsp, inbuf.buffer, TARBLKSZ)) < TARBLKSZ) {
         if (tmp == TS_ERR_ZLIB)
           fprintf(stderr, "zlib error: %s\n", tsp->zsp->msg);
-        else
-          perror((tmp >= 0) ? "partial block write" : "write block");
+        else if (tmp >= 0)
+          perror("partial block write");
+        else /* tmp < 0 */
+          ptserror("write error", tmp, tsp);
         return 2;
       }
     }
@@ -215,7 +223,9 @@ int create_index(const char *indexfile, const char *tarfile,
   }
   
   tmp = ts_close(tsp, 1 /* free tsp */);
-  /* TODO: check for error from close */
+  if (tmp < 0)
+    /* FIXME: warning about tsp contents may fail when tsp is free'd */
+    ptserror("close error", tmp, tsp);
   
   return 0;
 }
