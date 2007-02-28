@@ -1,8 +1,8 @@
 # Makefile for tarix
 
-TARGET=bin/tarix
+TARGETS=bin/tarix bin/fuse_tarix
 
-MAIN_SRC=src/tarix.c
+MAIN_SRC=src/tarix.c src/fuse_tarix.c
 LIB_SRCS=src/create_index.c src/extract_files.c src/portability.c \
 	src/tstream.c src/crc32.c src/ts_util.c
 SOURCES=${MAIN_SRC} ${LIB_SRCS}
@@ -14,17 +14,20 @@ T_SOURCES=test/t_tws.c test/t_trs.c test/t_tsk.c
 T_OBJECTS=$(patsubst test/%.c,obj/test/%.o,${T_SOURCES})
 T_DEPS=$(patsubst test/%.c,obj/test/%.d,${T_SOURCES})
 T_TARGETS=$(patsubst test/%.c,bin/test/%,${T_SOURCES})
+TESTS=$(patsubst test/%.c,test-%,${T_SOURCES})
 
 CPPFLAGS=-Isrc -D_GNU_SOURCE
 CFLAGS=-Wall -Werror -g
+CPPFLAGS_fuse_tarix:=$(shell pkg-config fuse --cflags)
 # for cygwin, export LDFLAGS=-L/usr/bin
 LDFLAGS+=-lz
+LDFLAGS_fuse_tarix:=$(shell pkg-config fuse --libs)
 CC=gcc
 INSTBASE=/usr/local
 
-.PHONY :: all dep build_test
+.PHONY :: all dep build_test test ${TESTS}
 
-all : ${TARGET}
+all : ${TARGETS}
 
 dep : ${DEPS}
 
@@ -42,7 +45,7 @@ ${OBJECTS} ${DEPS} : obj/.d bin/.d
 ${T_OBJECTS} ${T_DEPS} : obj/test/.d bin/test/.d
 
 bin/%: obj/%.o ${LIB_OBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} -o $@ $^
+	${CC} ${CFLAGS} ${LDFLAGS} $(LDFLAGS_$(*)) -o $@ $^
 
 bin/test/%: obj/test/%.o ${LIB_OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ $^
@@ -52,19 +55,19 @@ bin/test/%: obj/test/%.o ${LIB_OBJS}
 	@touch $@
 
 obj/%.o : src/%.c
-	${CC} ${CPPFLAGS} ${CFLAGS} -c $< -o $@
+	${CC} ${CPPFLAGS} $(CPPFLAGS_$(*)) ${CFLAGS} $(CFLAGS_$(*)) -c $< -o $@
 
 obj/test/%.o : test/%.c
 	${CC} ${CPPFLAGS} ${CFLAGS} -c $< -o $@
 
 obj/%.d : src/%.c
-	${CC} ${CPPFLAGS} -MM $< | sed -e 's/^\(.*\)\.o[ :]*/obj\/\1.o obj\/\1.d : /' >$@
+	${CC} ${CPPFLAGS} $(CPPFLAGS_$(*)) -MM $< | sed -e 's/^\(.*\)\.o[ :]*/obj\/\1.o obj\/\1.d : /' >$@
 
 obj/test/%.d : test/%.c
 	${CC} ${CPPFLAGS} -MM $< | sed -e 's/^\(.*\)\.o[ :]*/obj\/test\/\1.o obj\/test\/\1.d : /' >$@
 
 install: all
-	install ${TARGET} ${INSTBASE}/bin
+	install ${TARGETS} ${INSTBASE}/bin
 
 clean:
 	rm -rf obj/ out.tarix
