@@ -17,30 +17,27 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __CRC32_H__
-#define __CRC32_H__
+#ifndef __INDEX_PARSER_H__
+#define __INDEX_PARSER_H__
 
-/* crc32 code from RFC-1952 */
+#include <sys/types.h>
 
-/* Make the table for a fast CRC. */
-void make_crc_table(void);
+struct index_parser_state {
+  int version;
+  int allocate_filename;
+};
 
-/* Update a running crc with the bytes buf[0..len-1] and return the updated
- * crc. The crc should be initialized to zero. Pre- and post-conditioning
- * (one's complement) is performed within this function so it shouldn't be
- * done by the caller. Usage example:
- *
- * unsigned long crc = 0L;
- *
- * while (read_buffer(buffer, length) != EOF) {
- *   crc = update_crc(crc, buffer, length);
- * }
- *
- * if (crc != original_crc) error();
- */
-unsigned long update_crc(unsigned long crc, unsigned char *buf, int len);
+struct index_entry {
+  int version;
+  unsigned long ioffset;
+  off64_t zoffset;
+  unsigned long ilen;
+  char *filename;
+  int filename_allocated;
+};
 
-/* Return the CRC of the bytes buf[0..len-1]. */
-unsigned long crc(unsigned char *buf, int len);
+int init_index_parser(struct index_parser_state *state, char *header);
 
-#endif /* __CRC32_H__ */
+int parse_index_line(struct index_parser_state *state, char *line, struct index_entry *entry);
+
+#endif

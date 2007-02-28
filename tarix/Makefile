@@ -4,7 +4,8 @@ TARGETS=bin/tarix bin/fuse_tarix
 
 MAIN_SRC=src/tarix.c src/fuse_tarix.c
 LIB_SRCS=src/create_index.c src/extract_files.c src/portability.c \
-	src/tstream.c src/crc32.c src/ts_util.c
+	src/tstream.c src/crc32.c src/ts_util.c \
+	src/lineloop.c src/index_parser.c
 SOURCES=${MAIN_SRC} ${LIB_SRCS}
 OBJECTS=$(patsubst src/%.c,obj/%.o,${SOURCES})
 LIB_OBJS=$(patsubst src/%.c,obj/%.o,${LIB_SRCS})
