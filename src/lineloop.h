@@ -17,30 +17,11 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __CRC32_H__
-#define __CRC32_H__
+#ifndef __LINeLoop_H__
+#define __LINELOOP_H
 
-/* crc32 code from RFC-1952 */
+typedef int (*lineprocessor_t)(char *line, void *data);
 
-/* Make the table for a fast CRC. */
-void make_crc_table(void);
+int lineloop(int fd, lineprocessor_t lineprocessor, void *data);
 
-/* Update a running crc with the bytes buf[0..len-1] and return the updated
- * crc. The crc should be initialized to zero. Pre- and post-conditioning
- * (one's complement) is performed within this function so it shouldn't be
- * done by the caller. Usage example:
- *
- * unsigned long crc = 0L;
- *
- * while (read_buffer(buffer, length) != EOF) {
- *   crc = update_crc(crc, buffer, length);
- * }
- *
- * if (crc != original_crc) error();
- */
-unsigned long update_crc(unsigned long crc, unsigned char *buf, int len);
-
-/* Return the CRC of the bytes buf[0..len-1]. */
-unsigned long crc(unsigned char *buf, int len);
-
-#endif /* __CRC32_H__ */
+#endif

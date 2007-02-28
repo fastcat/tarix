@@ -52,7 +52,7 @@ int main (int argc, char **argv) {
     return 1;
   }
   
-  /* 30 is the observed checkpoitn address */
+  /* 30 is the observed checkpoint address */
   rv = ts_seek(tsp, 0x30);
   if (rv < 0) {
     ptserror("ts_seek", rv, tsp);
