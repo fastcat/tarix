@@ -19,10 +19,10 @@ TESTS=$(patsubst test/%.c,test-%,${T_SOURCES})
 
 CPPFLAGS=-Isrc -D_GNU_SOURCE
 CFLAGS=-Wall -Werror -g
-CPPFLAGS_fuse_tarix:=$(shell pkg-config fuse --cflags)
+CPPFLAGS_fuse_tarix:=$(shell pkg-config fuse --cflags) $(shell pkg-config glib-2.0 --cflags)
 # for cygwin, export LDFLAGS=-L/usr/bin
 LDFLAGS+=-lz
-LDFLAGS_fuse_tarix:=$(shell pkg-config fuse --libs)
+LDFLAGS_fuse_tarix:=$(shell pkg-config fuse --libs) $(shell pkg-config glib-2.0 --libs)
 CC=gcc
 INSTBASE=/usr/local
 
