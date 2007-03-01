@@ -32,6 +32,7 @@ int init_index_parser(struct index_parser_state *state, char *header) {
     fprintf(stderr, "Index version %d not supported\n", state->version);
     return 1;
   }
+  state->last_num = -1;
   return 0;
 }
 
@@ -70,6 +71,9 @@ int parse_index_line(struct index_parser_state *state, char *line, struct index_
     entry->filename = strdup(line + fnpos);
   else
     entry->filename = line + fnpos;
+  
+  ++state->last_num;
+  entry->num = state->last_num;
   
   return 0;
 }

@@ -41,6 +41,8 @@
 #define DIRTYPE  '5'            /* directory */
 #define FIFOTYPE '6'            /* FIFO special */
 #define CONTTYPE '7'            /* reserved: contiguous files (???) */
+#define GNUTYPE_LONGLINK 'K'
+#define GNUTYPE_LONGNAME 'L'
 
 /* Bits used in the mode field, values in octal.  */
 #define TSUID    04000          /* set UID on execution */

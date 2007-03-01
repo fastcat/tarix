@@ -164,10 +164,10 @@ int create_index(const char *indexfile, const char *tarfile,
       DMSG("have %llu blocks to pass\n", size_tmp);
       
       switch(inbuf.header.typeflag) {
-        case 'K':
+        case GNUTYPE_LONGLINK:
           blocks_left_type = BT_LONGLINK;
           break;
-        case 'L':
+        case GNUTYPE_LONGNAME:
           blocks_left_type = BT_LONGNAME;
           break;
         default: {

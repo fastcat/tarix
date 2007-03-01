@@ -25,10 +25,13 @@
 struct index_parser_state {
   int version;
   int allocate_filename;
+  int last_num;
 };
 
 struct index_entry {
   int version;
+  /* 0-based index of entry in the index */
+  int num;
   unsigned long ioffset;
   off64_t zoffset;
   unsigned long ilen;
