@@ -19,32 +19,33 @@
 
 #define FUSE_USE_VERSION 26
 
-#include <fuse.h>
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stddef.h>
-#include <stdlib.h>
+#include <fuse.h>
 #include <glib.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "lineloop.h"
 #include "index_parser.h"
 #include "tstream.h"
 #include "tar.h"
 
-/* node type in the index */
-enum nodetype {
-  /* haven't yet examined the node */
-  FT_UNPROCESSED = 0,
-  FT_FILE,
-  FT_DIRECTORY,
-  FT_OTHER,
-};
 
 struct index_node {
   struct index_entry entry;
-  enum nodetype type;
+  /* stat struct for the file,
+   * st_nlink is used to identify whether or not it has been initialized
+   * 0 means not inited, other means inited
+   * For directories, a value of 1 means the stat structure is inited,
+   * but not the child nodes
+   */
+  struct stat stbuf;
   struct index_node *next;
   struct index_node *child;
 };
@@ -61,41 +62,130 @@ struct tarixfs_t {
 
 static struct tarixfs_t tarixfs;
 
-/*
+static int is_node_stat_filled(struct index_node *node) {
+  if (node == NULL)
+    return 0;
+  if (node->stbuf.st_nlink == 0)
+    return 0;
+  return 1;
+}
+
+static int is_node_children_filled(struct index_node *node) {
+  if (node == NULL)
+    return 0;
+  if (node->stbuf.st_nlink == 0)
+    return 0;
+  if (node->stbuf.st_mode == S_IFDIR)
+    return node->stbuf.st_nlink > 1;
+  return 1;
+}
+
+static int fill_node_stat(struct index_node *node) {
+  int res;
+  union tar_block tarhdr;
+  /* seek to header */
+  res = ts_seek(tarixfs.tsp, tarixfs.use_zlib
+    ? node->entry.zoffset : (off64_t)node->entry.ioffset * TARBLKSZ);
+  if (res != 0)
+    /*TODO: log underlying error */
+    return -EIO;
+  /* read header */
+  res = ts_read(tarixfs.tsp, &tarhdr, TARBLKSZ);
+  if (res < TARBLKSZ)
+    return -EIO;
+  /* handle long name */
+  if (tarhdr.header.typeflag == GNUTYPE_LONGNAME) {
+    /* skip the name */
+    res = ts_read(tarixfs.tsp, &tarhdr, TARBLKSZ);
+    if (res < TARBLKSZ)
+      return -EIO;
+    /* read the real file header */
+    res = ts_read(tarixfs.tsp, &tarhdr, TARBLKSZ);
+    if (res < TARBLKSZ)
+      return -EIO;
+  }
+  /* process header */
+  memset(&node->stbuf, 0, sizeof(node->stbuf));
+  node->stbuf.st_ino = node->entry.num;
+  /* tar doesn't fill in higher bits */
+  node->stbuf.st_mode = strtol(tarhdr.header.mode, NULL, 8) & 07777;
+  switch (tarhdr.header.typeflag) {
+    case REGTYPE:
+    case AREGTYPE:
+      node->stbuf.st_mode |= S_IFREG;
+      break;
+    case SYMTYPE:
+      node->stbuf.st_mode |= S_IFLNK;
+      break;
+    case CHRTYPE:
+      node->stbuf.st_mode |= S_IFCHR;
+      break;
+    case BLKTYPE:
+      node->stbuf.st_mode |= S_IFBLK;
+      break;
+    case DIRTYPE:
+      node->stbuf.st_mode |= S_IFDIR;
+      break;
+    case FIFOTYPE:
+      node->stbuf.st_mode |= S_IFIFO;
+      break;
+    default:
+      /*TODO: logging */
+      return -EIO;
+  }
+  /* dirs will get further analysis later on */
+  node->stbuf.st_nlink = 1;
+  /*TODO: user/group handling */
+  node->stbuf.st_uid = strtoul(tarhdr.header.uid, NULL, 8);
+  node->stbuf.st_gid = strtoul(tarhdr.header.gid, NULL, 8);
+  node->stbuf.st_size = strtoul(tarhdr.header.size, NULL, 8);
+  node->stbuf.st_mtime = node->stbuf.st_atime = node->stbuf.st_ctime
+    = strtoul(tarhdr.header.mtime, NULL, 8);
+  
+  return 0;
+}
+
+static int fill_node_children(struct index_node *node) {
+  return -ENOSYS;
+}
+
 static int tarix_getattr(const char *path, struct stat *stbuf)
 {
-    int res = 0;
-    memset(stbuf, 0, sizeof(struct stat));
-    if(strcmp(path, "/") == 0) {
-        stbuf->st_mode = S_IFDIR | 0755;
-        stbuf->st_nlink = 2;
-    }
-    else if(strcmp(path, tarix_path) == 0) {
-        stbuf->st_mode = S_IFREG | 0444;
-        stbuf->st_nlink = 1;
-        stbuf->st_size = strlen(tarixfs.tarix_str);
-    }
-    else
-        res = -ENOENT;
-    return res;
+  memset(stbuf, 0, sizeof(struct stat));
+  struct index_node *node = g_hash_table_lookup(tarixfs.fnhash, path);
+  if (node == NULL)
+    return -ENOENT;
+  int res;
+  if (!is_node_stat_filled(node))
+    if ((res = fill_node_stat(node)) != 0)
+      return res;
+  memcpy(stbuf, &node->stbuf, sizeof(*stbuf));
+  return 0;
 }
 
 static int tarix_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-                         off_t offset, struct fuse_file_info *fi)
-{
-    (void) offset;
-    (void) fi;
-
-    if(strcmp(path, "/") != 0)
-        return -ENOENT;
-
-    filler(buf, ".", NULL, 0);
-    filler(buf, "..", NULL, 0);
-    filler(buf, tarix_path + 1, NULL, 0);
-
-    return 0;
+    off_t offset, struct fuse_file_info *fi) {
+  struct index_node *node = g_hash_table_lookup(tarixfs.fnhash, path);
+  if (node == NULL)
+    return -ENOENT;
+  
+  int res;
+  if (!is_node_stat_filled(node))
+    if ((res = fill_node_stat(node)) != 0)
+      return res;
+  
+  if (!is_node_children_filled(node))
+    if ((res = fill_node_children(node)) != 0)
+      return res;
+  
+  return -ENOSYS;
+  
+  filler(buf, ".", NULL, 0);
+  filler(buf, "..", NULL, 0);
+  return 0;
 }
 
+/*
 static int tarix_open(const char *path, struct fuse_file_info *fi)
 {
     if(strcmp(path, tarix_path) != 0)
@@ -126,12 +216,10 @@ static int tarix_read(const char *path, char *buf, size_t size, off_t offset,
 */
 
 static struct fuse_operations tarix_oper = {
-/*
-    .getattr	= tarix_getattr,
-    .readdir	= tarix_readdir,
-    .open	= tarix_open,
-    .read	= tarix_read,
-*/
+  .getattr = tarix_getattr,
+  .readdir = tarix_readdir,
+//  .open = tarix_open,
+//  .read = tarix_read,
 };
 
 enum tarix_opt_keys {
