@@ -72,8 +72,7 @@ int parse_index_line(struct index_parser_state *state, char *line, struct index_
   else
     entry->filename = line + fnpos;
   
-  ++state->last_num;
-  entry->num = state->last_num;
+  entry->num = ++state->last_num;
   
   return 0;
 }
