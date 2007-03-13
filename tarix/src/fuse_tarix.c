@@ -106,18 +106,9 @@ static int tarix_read(const char *path, char *buf, size_t size, off_t offset,
   if (node == NULL)
     return -ENOENT;
   
-  off64_t nodeoffset;
-  switch (node->entry.version) {
-    case 0:
-      nodeoffset = node->entry.ioffset * TARBLKSZ;
-      break;
-    case 1:
-      nodeoffset = node->entry.zoffset;
-      break;
-    default:
-fprintf(stderr, "Unknown version %d in record '%s', how did it get past?\n", node->entry.version, node->entry.filename);
-      return -EIO;
-  }
+  off64_t nodeoffset = get_node_effective_offset(node);
+  if (nodeoffset < 0)
+    return -EIO;
   
   if (ts_seek(tarixfs.tsp, nodeoffset) != 0) {
 fprintf(stderr, "seek error for initial tar header in record '%s'\n", node->entry.filename);
@@ -129,14 +120,16 @@ fprintf(stderr, "read error for initial tar header in record '%s'\n", node->entr
     return -EIO;
   }
   
-  if (theader.header.typeflag == GNUTYPE_LONGNAME
+  // skip any prefix records (long names, symlinks)
+  
+  while (theader.header.typeflag == GNUTYPE_LONGNAME
       || theader.header.typeflag == GNUTYPE_LONGLINK) {
-    // skip the text
+    // skip the long link/name
     if ((res = ts_read(tarixfs.tsp, &theader, TARBLKSZ)) != TARBLKSZ) {
 fprintf(stderr, "read error skipping long link/name in record '%s'\n", node->entry.filename);
       return -EIO;
     }
-    // read the real header
+    // read the next header (maybe the real one)
     if ((res = ts_read(tarixfs.tsp, &theader, TARBLKSZ)) != TARBLKSZ) {
 fprintf(stderr, "read error skipping long link/name (#2) in record '%s'\n", node->entry.filename);
       return -EIO;
@@ -149,7 +142,7 @@ fprintf(stderr, "read error skipping long link/name (#2) in record '%s'\n", node
   }
   
   // use the buffer in the tar header to skip data
-  //TODO: seek on normal files
+  //TODO: direct seek on normal files
   
   // skip to the desired data
   while (offset > 0) {
@@ -166,12 +159,77 @@ fprintf(stderr, "pseudo-seek read error in record '%s'\n", node->entry.filename)
   return res;
 }
 
+static int tarix_readlink(const char *path, char *buf, size_t len) {
+  union tar_block theader;
+  int res;
+  
+  struct index_node *node = find_node(path);
+  if (node == NULL)
+    return -ENOENT;
+  
+  off64_t nodeoffset = get_node_effective_offset(node);
+  if (nodeoffset < 0)
+    return -EIO;
+  
+  if (ts_seek(tarixfs.tsp, nodeoffset) != 0) {
+fprintf(stderr, "seek error for initial tar header in record '%s'\n", node->entry.filename);
+    return -EIO;
+  }
+  
+  if ((res = ts_read(tarixfs.tsp, &theader, TARBLKSZ)) != TARBLKSZ) {
+fprintf(stderr, "read error for initial tar header in record '%s'\n", node->entry.filename);
+    return -EIO;
+  }
+
+  // skip any longname prefix record
+  if (theader.header.typeflag == GNUTYPE_LONGNAME) {
+    // skip the text
+    if ((res = ts_read(tarixfs.tsp, &theader, TARBLKSZ)) != TARBLKSZ) {
+fprintf(stderr, "read error skipping long link/name in record '%s'\n", node->entry.filename);
+      return -EIO;
+    }
+    // read the next (maybe real)
+    if ((res = ts_read(tarixfs.tsp, &theader, TARBLKSZ)) != TARBLKSZ) {
+fprintf(stderr, "read error skipping long link/name (#2) in record '%s'\n", node->entry.filename);
+      return -EIO;
+    }
+  }
+  
+  int cpylen;
+  char *cpysrc;
+  // if we hit a longlink record, use that
+  if (theader.header.typeflag == GNUTYPE_LONGLINK) {
+    // read the long link name
+    if ((res = ts_read(tarixfs.tsp, &theader, TARBLKSZ)) != TARBLKSZ) {
+fprintf(stderr, "read error reading long link/name in record '%s'\n", node->entry.filename);
+      return -EIO;
+    }
+    // use the smaller of the two lengths
+    cpylen = TARBLKSZ < len ? TARBLKSZ : len;
+    cpysrc = theader.buffer;
+  } else if (theader.header.typeflag == SYMTYPE) {
+    // linkname is 100 bytes
+    cpylen = sizeof(theader.header.linkname) < len ? sizeof(theader.header.linkname) : len;
+    cpysrc = theader.header.linkname;
+  } else {
+    // not a symlink
+    return -EINVAL;
+  }
+  
+  // copy the data
+  strncpy(buf, cpysrc, cpylen);
+  // make sure it's null terminated
+  buf[cpylen - 1] = 0;
+  
+  return 0;
+}
 
 static struct fuse_operations tarix_oper = {
   .getattr = tarix_getattr,
   .readdir = tarix_readdir,
   .open = tarix_open,
   .read = tarix_read,
+  .readlink = tarix_readlink,
 };
 
 static struct fuse_operations null_oper = { };

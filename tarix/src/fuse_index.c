@@ -92,8 +92,9 @@ static int fill_node_stat(struct index_node *node) {
   res = ts_read(tarixfs.tsp, &tarhdr, TARBLKSZ);
   if (res < TARBLKSZ)
     return -EIO;
-  /* handle long name */
-  if (tarhdr.header.typeflag == GNUTYPE_LONGNAME) {
+  /* handle (skip) long name and link records */
+  while (tarhdr.header.typeflag == GNUTYPE_LONGNAME
+      || tarhdr.header.typeflag == GNUTYPE_LONGLINK) {
     /* skip the name */
     res = ts_read(tarixfs.tsp, &tarhdr, TARBLKSZ);
     if (res < TARBLKSZ)
@@ -279,3 +280,19 @@ static int fill_link_nodes(struct index_parser_state *ipstate) {
   return 0;
 }
 
+static off64_t get_node_effective_offset(struct index_node *node) {
+  switch (node->entry.version) {
+    case 0:
+      return node->entry.ioffset * TARBLKSZ;
+      break;
+    case 1:
+      if (tarixfs.use_zlib)
+        return node->entry.zoffset;
+      else
+        return node->entry.ioffset * TARBLKSZ;
+      break;
+    default:
+fprintf(stderr, "Unknown version %d in record '%s', how did it get past?\n", node->entry.version, node->entry.filename);
+      return -1;
+  }
+}
