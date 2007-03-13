@@ -146,8 +146,9 @@ fprintf(stderr, "read error skipping long link/name (#2) in record '%s'\n", node
   
   // skip to the desired data
   while (offset > 0) {
-    res = ts_read(tarixfs.tsp, theader.buffer, TARBLKSZ);
-    if (res < 1) {
+    int readcount = TARBLKSZ < offset ? TARBLKSZ : offset;
+    res = ts_read(tarixfs.tsp, theader.buffer, readcount);
+    if (res != readcount) {
 fprintf(stderr, "pseudo-seek read error in record '%s'\n", node->entry.filename);
       return -EIO;
     }

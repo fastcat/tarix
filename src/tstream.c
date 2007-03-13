@@ -275,7 +275,9 @@ int ts_read(t_streamp tsp, void *buf, int len) {
       memmove(tsp->outbuf, tsp->outbuf + toadd, bytesavail - toadd);
       zsp->avail_out += toadd;
       zsp->next_out = tsp->outbuf + (tsp->bufsz - zsp->avail_out);
+      /* mark what we've used up */
       left -= toadd;
+      cur += toadd;
     }
     
     if (tsp->zlib_err == Z_STREAM_END) {
