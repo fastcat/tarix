@@ -224,12 +224,54 @@ fprintf(stderr, "read error reading long link/name in record '%s'\n", node->entr
   return 0;
 }
 
+#include "fuse_rofs.c"
+
 static struct fuse_operations tarix_oper = {
   .getattr = tarix_getattr,
   .readdir = tarix_readdir,
   .open = tarix_open,
   .read = tarix_read,
   .readlink = tarix_readlink,
+  
+  //TODO
+  //.statfs = tarix_statfs,
+  
+  // we would have nothing to do for these
+  //.flush = tarix_flush,
+  //.release = tarix_release,
+  //.fsync = tarix_fsync,
+  //.opendir = tarix_opendir, // always succeed
+  //.releasedir = tarix_releasedir,
+  //.fsyncdir = tarix_fsyncdir,
+  //.init = tarix_init,
+  //.destroy = tarix_destroy,
+  //.access = tarix_access,
+  
+  // could implement this as optimization if we stored node in file info
+  //.fgetattr = tarix_fgetattr,
+  
+  // let these keep the function not implemented, or fuse default impl
+  //.getxattr = tarix_getxattr,
+  //.lock = tarix_lock,
+  //.bmap = tarix_bmap, // almost never usable with tar archives
+  
+  // these will all return EROFS (readonly filesystem)
+  .mknod = tarix_mknod,
+  .mkdir = tarix_rofs_pathmode,
+  .unlink = tarix_rofs_path,
+  .rmdir = tarix_rofs_path,
+  .symlink = tarix_rofs_2path,
+  .rename = tarix_rofs_2path,
+  .link = tarix_rofs_2path,
+  .chmod = tarix_rofs_pathmode,
+  .chown = tarix_chown,
+  .truncate = tarix_truncate,
+  .write = tarix_write,
+  .setxattr = tarix_setxattr,
+  .removexattr = tarix_rofs_2path,
+  .create = tarix_create,
+  .ftruncate = tarix_ftruncate,
+  .utimens = tarix_utimens,
 };
 
 static struct fuse_operations null_oper = { };
