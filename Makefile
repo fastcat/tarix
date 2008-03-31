@@ -11,15 +11,22 @@ OBJECTS=$(patsubst src/%.c,obj/%.o,${SOURCES})
 LIB_OBJS=$(patsubst src/%.c,obj/%.o,${LIB_SRCS})
 DEPS=$(patsubst src/%.c,obj/%.d,${SOURCES})
 
-T_SOURCES=test/t_tws.c test/t_trs.c test/t_tsk.c
+TESTS=$(patsubst test/%.sh,%,$(wildcard test/*.sh))
+_WANT_T_SOURCES=$(patsubst %,test/%.c,${TESTS})
+_HAVE_T_SOURCES=$(wildcard test/*.c)
+T_SOURCES=$(filter ${_HAVE_T_SOURCES},${_WANT_T_SOURCES})
 T_OBJECTS=$(patsubst test/%.c,obj/test/%.o,${T_SOURCES})
 T_DEPS=$(patsubst test/%.c,obj/test/%.d,${T_SOURCES})
 T_TARGETS=$(patsubst test/%.c,bin/test/%,${T_SOURCES})
-TESTS=$(patsubst test/%.c,test-%,${T_SOURCES})
 
 CPPFLAGS=-Isrc -D_GNU_SOURCE
 # some warnings only can be shown with -O1
-CFLAGS=-Wall -Werror -g
+ifdef DEBUG
+CFLAGS_O=
+else
+CFLAGS_O=-O1
+endif
+CFLAGS=-Wall -Werror -g -std=gnu99 $(CFLAGS_O)
 CPPFLAGS_fuse_tarix:=$(shell pkg-config fuse --cflags) $(shell pkg-config glib-2.0 --cflags)
 # for cygwin, export LDFLAGS=-L/usr/bin
 LDFLAGS+=-lz
@@ -33,14 +40,20 @@ all : ${TARGETS}
 
 dep : ${DEPS}
 
-build_test: bin/test/.d ${T_TARGETS}
+build_test: ${TARGETS} bin/test/.d ${T_TARGETS}
 
-test-%: bin/test/t_%
-	@echo Testing: $*
-	@if [ -f test/t_$*.sh ]; then test/t_$*.sh ; else $< ; fi
-	@echo Testing: $* Done
+test-%: build_test test/%.sh
+	@printf "Test: %-30s ..." $*
+	@if test/$*.sh &>bin/test/$*.log ; then \
+		echo " OK" ; \
+	else \
+		echo FAILED ; \
+		cat bin/test/$*.log ; \
+		exit 1 ; \
+	fi
 
-test: build_test $(patsubst bin/test/t_%,test-%,${T_TARGETS})
+test: build_test $(patsubst %,test-%,${TESTS})
+	@echo All tests appear to have passed
 
 ${OBJECTS} ${DEPS} : obj/.d bin/.d
 

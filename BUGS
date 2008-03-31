@@ -1,0 +1,3 @@
+Known Bugs
+
+* hardlinks not supported for fuse mount (they will be hidden)

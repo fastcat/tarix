@@ -32,9 +32,10 @@ struct index_entry {
   int version;
   /* 0-based index of entry in the index */
   int num;
-  unsigned long ioffset;
-  off64_t zoffset;
-  unsigned long ilen;
+  char recordtype;
+  unsigned long blocknum;
+  off64_t offset;
+  unsigned long blocklength;
   char *filename;
   int filename_allocated;
 };

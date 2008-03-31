@@ -1,10 +1,16 @@
-1.0.5 (dev)
+1.0.6 (unreleased)
+	* bugfixes
+	* format update to help fuse
+	* fuse work to use the format update
+	* updates and improvements to the test suite
+
+1.0.5 (unreleased)
 	* fuse work
 
-1.0.4 (dev)
+1.0.4 (unreleased)
 	* fix major bugs in 1.0.3 introduced by fuse refactoring
 
-1.0.3 (dev)
+1.0.3 (unreleased)
 	* bugfixes
 	* fuse work
 

@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "tarix.h"
 #include "index_parser.h"
 
 int init_index_parser(struct index_parser_state *state, char *header) {
@@ -28,7 +29,7 @@ int init_index_parser(struct index_parser_state *state, char *header) {
     fprintf(stderr, "Index header not recognized\n");
     return 1;
   }
-  if (state->version < 0 || state->version > 1) {
+  if (state->version < 0 || state->version > TARIX_FORMAT_VERSION) {
     fprintf(stderr, "Index version %d not supported\n", state->version);
     return 1;
   }
@@ -46,13 +47,19 @@ int parse_index_line(struct index_parser_state *state, char *line, struct index_
   switch (state->version) {
     case 0:
       sscount = 2;
-      ssret = sscanf(line, "%ld %ld %n", &entry->ioffset, &entry->ilen, &fnpos);
+      ssret = sscanf(line, "%ld %ld %n", &entry->blocknum, &entry->blocklength, &fnpos);
       break;
     case 1:
       sscount = 3;
-      ssret = sscanf(line, "%ld %lld %ld %n", &entry->ioffset, &lltmp,
-        &entry->ilen, &fnpos);
-      entry->zoffset = lltmp;
+      ssret = sscanf(line, "%ld %lld %ld %n", &entry->blocknum, &lltmp,
+        &entry->blocklength, &fnpos);
+      entry->offset = lltmp;
+      break;
+    case 2:
+      sscount = 4;
+      ssret = sscanf(line, "%c %ld %lld %ld %n", &entry->recordtype, &entry->blocknum,
+        &lltmp, &entry->blocklength, &fnpos);
+      entry->offset = lltmp;
       break;
     default:
       fprintf(stderr, "Index version %d not supported\n", state->version);

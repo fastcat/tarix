@@ -81,20 +81,17 @@ int extract_files_lineloop_processor(char *line, void *data) {
       DMSG("extracting %s\n", entry.filename);
       /* seek to the record start and then pass the record through */
       /* don't actually seek if we're already there */
-      if (state->curpos != entry.ioffset) {
-        destoff = state->zlib_level ? entry.zoffset : entry.ioffset * TARBLKSZ;
+      if (state->curpos != entry.blocknum) {
+        destoff = state->zlib_level ? entry.offset : entry.blocknum * TARBLKSZ;
         DMSG("seeking to %lld\n", (long long)destoff);
         if (ts_seek(state->tsp, destoff) != 0) {
           fprintf(stderr, "seek error\n");
           return 1;
         }
-        state->curpos = entry.ioffset;
+        state->curpos = entry.blocknum;
       }
-      DMSG("reading %ld records\n", entry.ilen);
-      /* this destroys ilen, but that's ok since we're only gonna
-       * extract the file once
-       */
-      for (; entry.ilen > 0; --entry.ilen) {
+      DMSG("reading %ld records\n", entry.blocklength);
+      for (unsigned long bnum = 0; bnum < entry.blocklength; ++bnum) {
         if ((n = ts_read(state->tsp, passbuf, TARBLKSZ)) < TARBLKSZ) {
           if (n >= 0)
             perror("partial tarfile read");
@@ -102,7 +99,8 @@ int extract_files_lineloop_processor(char *line, void *data) {
             ptserror("read tarfile", n, state->tsp);
           return 2;
         }
-        DMSG("read a rec, now at %lld, %ld left\n", (long long)state->curpos, entry.ilen - 1);
+        DMSG("read a rec, now at %lld, %ld left\n",
+          (long long)state->curpos, entry.blocklength - bnum - 1);
         ++state->curpos;
         if ((n = write(state->outfd, passbuf, TARBLKSZ)) < TARBLKSZ) {
           perror((n > 0) ? "partial tarfile write" : "write tarfile");

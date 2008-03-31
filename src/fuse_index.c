@@ -27,7 +27,9 @@ struct index_node {
    * but not the child nodes
    */
   struct stat stbuf;
+  // next sibling node (NULL if none)
   struct index_node *next;
+  // first child node (NULL if none)
   struct index_node *child;
 };
 
@@ -84,7 +86,7 @@ static int fill_node_stat(struct index_node *node) {
   union tar_block tarhdr;
   /* seek to header */
   res = ts_seek(tarixfs.tsp, tarixfs.use_zlib
-    ? node->entry.zoffset : (off64_t)node->entry.ioffset * TARBLKSZ);
+    ? node->entry.offset : (off64_t)node->entry.blocknum * TARBLKSZ);
   if (res != 0)
     /*TODO: log underlying error */
     return -EIO;
@@ -109,6 +111,13 @@ static int fill_node_stat(struct index_node *node) {
   node->stbuf.st_ino = node->entry.num + 1;
   /* tar doesn't fill in higher bits */
   node->stbuf.st_mode = strtol(tarhdr.header.mode, NULL, 8) & 07777;
+  if (node->entry.recordtype != tarhdr.header.typeflag) {
+    if (node->entry.recordtype == 0)
+      node->entry.recordtype = tarhdr.header.typeflag;
+    else
+      fprintf(stderr, "WARN: entry typeflag changed? index says '%c' tar says '%c'\n",
+        node->entry.recordtype, tarhdr.header.typeflag);
+  }
   switch (tarhdr.header.typeflag) {
     case REGTYPE:
     case AREGTYPE:
@@ -116,6 +125,11 @@ static int fill_node_stat(struct index_node *node) {
       break;
     case SYMTYPE:
       node->stbuf.st_mode |= S_IFLNK;
+      break;
+    case LNKTYPE:
+      //TODO: support hardlinks
+      // for now, hide hardlinks
+      node->stbuf.st_mode = 0;
       break;
     case CHRTYPE:
       node->stbuf.st_mode |= S_IFCHR;
@@ -129,6 +143,11 @@ static int fill_node_stat(struct index_node *node) {
       break;
     case FIFOTYPE:
       node->stbuf.st_mode |= S_IFIFO;
+      break;
+    case GNUTYPE_VOLHDR:
+      //TODO: expose volume header as a symlink or something
+      // for now, hide the volume header
+      node->stbuf.st_mode = 0;
       break;
     default:
       fprintf(stderr, "Unknown tar block type '%c' for '%s'\n",
@@ -192,9 +211,9 @@ fprintf(stderr, "INFO: creating implicit directory '%s'\n", dpath);
   node->entry.version = -1;
   node->entry.num = ++cmstate->ipstate->last_num;
   /* put bogus offset values in */
-  node->entry.ioffset = ~0UL;
-  node->entry.zoffset = ~0ULL;
-  node->entry.ilen = ~0UL;
+  node->entry.blocknum = ~0UL;
+  node->entry.offset = ~0ULL;
+  node->entry.blocklength = ~0UL;
   node->entry.filename = dpath;
   node->entry.filename_allocated = 1;
   
@@ -286,16 +305,17 @@ static int fill_link_nodes(struct index_parser_state *ipstate) {
 static off64_t get_node_effective_offset(struct index_node *node) {
   switch (node->entry.version) {
     case 0:
-      return node->entry.ioffset * TARBLKSZ;
-      break;
+      return node->entry.blocknum * TARBLKSZ;
     case 1:
       if (tarixfs.use_zlib)
-        return node->entry.zoffset;
+        return node->entry.offset;
       else
-        return node->entry.ioffset * TARBLKSZ;
-      break;
+        return node->entry.blocknum * TARBLKSZ;
+    case 2:
+      return node->entry.offset;
     default:
-fprintf(stderr, "Unknown version %d in record '%s', how did it get past?\n", node->entry.version, node->entry.filename);
+      fprintf(stderr, "Unknown version %d in record '%s', how did it get past?\n",
+        node->entry.version, node->entry.filename);
       return -1;
   }
 }

@@ -51,6 +51,9 @@ static int tarix_getattr(const char *path, struct stat *stbuf)
   if (!is_node_stat_filled(node))
     if ((res = fill_node_stat(node)) != 0)
       return res;
+  // some nodes are invisible
+  if (node->stbuf.st_mode == 0)
+    return -ENOENT;
   memcpy(stbuf, &node->stbuf, sizeof(*stbuf));
   return 0;
 }
@@ -78,7 +81,9 @@ static int tarix_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
   
   struct index_node *child = node->child;
   while (child != NULL) {
-    filler(buf, strrchr(child->entry.filename, '/') + 1, &child->stbuf, 0);
+    // only show entries that we either haven't examined, or which we know exist
+    if (!is_node_stat_filled(child) || child->stbuf.st_mode != 0)
+      filler(buf, strrchr(child->entry.filename, '/') + 1, &child->stbuf, 0);
     child = child->next;
   }
   
@@ -298,6 +303,10 @@ int tarix_opt_proc(void *data, const char *arg, int key, struct fuse_args *outar
     case FUSE_OPT_KEY_OPT:
       return 1;
     case FUSE_OPT_KEY_NONOPT:
+      if (tarixfs.tarfilename == NULL) {
+        tarixfs.tarfilename = strdup(arg);
+        return 0;
+      }
       return 1;
     case TARIX_KEY_ZLIB:
       tarixfs.use_zlib = 1;
@@ -329,7 +338,7 @@ int index_lineloop(char *line, void *data) {
     /* could merge the case of no leading but a trailing slash and get fewer allocs */
     if (node->entry.filename[namelen-1] == '/') {
       node->entry.filename[namelen-1] = 0;
-      /* node that it's a directory */
+      /* note that it's a directory */
       node->stbuf.st_mode |= S_IFDIR;
     }
     if (node->entry.filename[0] != '/') {
@@ -339,14 +348,45 @@ int index_lineloop(char *line, void *data) {
       free(node->entry.filename);
       node->entry.filename = sfilename;
     }
-//if (node->stbuf.st_mode & S_IFDIR) fprintf(stderr, "INFO: inferred directoryness on '%s'\n", node->entry.filename);
-    g_hash_table_insert(tarixfs.fnhash, node->entry.filename, node);
+    // fill in data early for nodes we suspect of being hidden
+    if (node->entry.recordtype == 0 && node->entry.version < 2 && node->entry.blocklength == 1) {
+      int fnsret;
+      // this will update node->entry.recordtype
+      if ((fnsret = fill_node_stat(node)) != 0) {
+        fprintf(stderr, "ERROR: unable to query info for suspicious node '%s'\n", node->entry.filename);
+        return fnsret;
+      }
+    }
+    // only some record types get shown in the fuse mount
+    switch (node->entry.recordtype) {
+      case AREGTYPE:
+      case REGTYPE:
+      case LNKTYPE:
+      case SYMTYPE:
+      case CHRTYPE:
+      case BLKTYPE:
+      case DIRTYPE:
+      case FIFOTYPE:
+      case GNUTYPE_DUMPDIR:
+        // filesystem objects we can represent: include it
+        g_hash_table_insert(tarixfs.fnhash, node->entry.filename, node);
+        break;
+      case GNUTYPE_VOLHDR:
+        // silently ignore these types
+        break;
+      default:
+        fprintf(stderr, "WARN: entry '%s' has unsupported type '%c'\n",
+          node->entry.filename, node->entry.recordtype);
+        break;
+    }
   }
   return 0;
 }
 
 static void usage() {
   fprintf(stderr,
+    "fuse_tarix [tarfile] [mountpoint] [-o options]\n"
+    "\n"
     "Tarix options (for -o):\n"
     "    tar=tarfile            tar file to use\n"
     "    tarix=indexfile        tarix index to use\n"
@@ -369,6 +409,18 @@ int main(int argc, char *argv[])
     if ((tarixfs.flags_norun & TARIX_KEY_HELP) != 0)
       usage();
     return fuse_main(args.argc, args.argv, &null_oper, NULL);
+  }
+  
+  if (tarixfs.indexfilename == NULL) {
+    fprintf(stderr, "must specify an index filename\n");
+    usage();
+    return 1;
+  }
+  
+  if (tarixfs.tarfilename == NULL) {
+    fprintf(stderr, "must specify a tar filename\n");
+    usage();
+    return 1;
   }
   
   /* open the index file */
