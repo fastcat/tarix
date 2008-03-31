@@ -123,6 +123,7 @@ static int fill_node_stat(struct index_node *node) {
     case BLKTYPE:
       node->stbuf.st_mode |= S_IFBLK;
       break;
+    case GNUTYPE_DUMPDIR:
     case DIRTYPE:
       node->stbuf.st_mode |= S_IFDIR;
       break;
@@ -130,7 +131,8 @@ static int fill_node_stat(struct index_node *node) {
       node->stbuf.st_mode |= S_IFIFO;
       break;
     default:
-      /*TODO: logging */
+      fprintf(stderr, "Unknown tar block type '%c' for '%s'\n",
+        tarhdr.header.typeflag, node->entry.filename);
       return -EIO;
   }
   /* dirs will get further analysis later on */

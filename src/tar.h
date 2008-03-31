@@ -43,6 +43,18 @@
 #define CONTTYPE '7'            /* reserved: contiguous files (???) */
 #define GNUTYPE_LONGLINK 'K'
 #define GNUTYPE_LONGNAME 'L'
+/* This is a dir entry that contains the names of files that were in the
+   dir at the time the dump was made.  */
+#define GNUTYPE_DUMPDIR  'D'
+/* This is the continuation of a file that began on another volume.  */
+#define GNUTYPE_MULTIVOL 'M'
+/* This is for sparse files.  */
+#define GNUTYPE_SPARSE 'S'
+/* This file is a tape/volume header.  Ignore it on extraction.  */
+#define GNUTYPE_VOLHDR 'V'
+/* Solaris extended header */
+#define SOLARIS_XHDTYPE 'X'
+
 
 /* Bits used in the mode field, values in octal.  */
 #define TSUID    04000          /* set UID on execution */
@@ -61,29 +73,29 @@
 
 struct posix_header
 {                               /* byte offset */
-	char name[100];               /*   0 */
-	char mode[8];                 /* 100 */
-	char uid[8];                  /* 108 */
-	char gid[8];                  /* 116 */
-	char size[12];                /* 124 */
-	char mtime[12];               /* 136 */
-	char chksum[8];               /* 148 */
-	char typeflag;                /* 156 */
-	char linkname[100];           /* 157 */
-	char magic[6];                /* 257 */
-	char version[2];              /* 263 */
-	char uname[32];               /* 265 */
-	char gname[32];               /* 297 */
-	char devmajor[8];             /* 329 */
-	char devminor[8];             /* 337 */
-	char prefix[155];             /* 345 */
-	                              /* 500 */
+  char name[100];               /*   0 */
+  char mode[8];                 /* 100 */
+  char uid[8];                  /* 108 */
+  char gid[8];                  /* 116 */
+  char size[12];                /* 124 */
+  char mtime[12];               /* 136 */
+  char chksum[8];               /* 148 */
+  char typeflag;                /* 156 */
+  char linkname[100];           /* 157 */
+  char magic[6];                /* 257 */
+  char version[2];              /* 263 */
+  char uname[32];               /* 265 */
+  char gname[32];               /* 297 */
+  char devmajor[8];             /* 329 */
+  char devminor[8];             /* 337 */
+  char prefix[155];             /* 345 */
+                                /* 500 */
 };
 
 union tar_block
 {
-	char buffer[TARBLKSZ];
-	struct posix_header header;
+  char buffer[TARBLKSZ];
+  struct posix_header header;
 };
 
 #endif /* __TAR_H__ */
