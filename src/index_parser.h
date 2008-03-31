@@ -22,6 +22,8 @@
 
 #include <sys/types.h>
 
+#include "portability.h"
+
 struct index_parser_state {
   int version;
   int allocate_filename;

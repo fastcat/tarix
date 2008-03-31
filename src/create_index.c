@@ -25,6 +25,7 @@
 #include <stdlib.h>
 
 #include "debug.h"
+#include "portability.h"
 #include "tar.h"
 #include "tarix.h"
 #include "tstream.h"

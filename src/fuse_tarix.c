@@ -32,11 +32,11 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "lineloop.h"
 #include "index_parser.h"
-#include "tstream.h"
+#include "lineloop.h"
+#include "portability.h"
 #include "tar.h"
-
+#include "tstream.h"
 
 // helper code related to in memory tar index is in a secondary file
 #include "fuse_index.c"
