@@ -2,6 +2,6 @@
 
 set -xe
 
-bin/test/t_trs
+bin/test/03-tsk
 [ -f bin/test/data ] || exit 1
 hexdump -C bin/test/data
