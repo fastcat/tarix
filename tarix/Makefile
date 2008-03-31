@@ -62,7 +62,7 @@ build_test: ${TARGETS} bin/test/.d ${T_TARGETS}
 
 test-%: build_test test/%.sh
 	@printf "Test: %-30s ..." $*
-	@if test/$*.sh &>bin/test/$*.log ; then \
+	@if test/$*.sh >bin/test/$*.log 2>&1 ; then \
 		echo " OK" ; \
 	else \
 		echo FAILED ; \
