@@ -26,11 +26,12 @@
 #include <fcntl.h>
 
 #include "debug.h"
+#include "index_parser.h"
+#include "lineloop.h"
+#include "portability.h"
 #include "tar.h"
 #include "tarix.h"
 #include "tstream.h"
-#include "lineloop.h"
-#include "index_parser.h"
 
 struct extract_files_state {
   int gotheader;
