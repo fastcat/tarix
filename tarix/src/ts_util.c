@@ -39,7 +39,7 @@ static void lsb_buf(Bytef *buf, unsigned long int32) {
 void put_gz_header(t_streamp tsp) {
   Bytef *obuf = tsp->zsp->next_out;
   time_t now;
-  const char *fcomment = "TARIX COMPRESSED v" TARIX_FMT_VERSION_NEW;
+  const char *fcomment = "TARIX COMPRESSED v" TARIX_FORMAT_STRING;
   int nbytes;
   
   /* magic */
@@ -176,7 +176,7 @@ int process_inflate(t_streamp tsp, int flush) {
 }
 
 int read_gz_header(t_streamp tsp) {
-  char *signature = "TARIX COMPRESSED v" TARIX_FMT_VERSION_NEW;
+  const char *signature_start = "TARIX COMPRESSED v";
   int p = 0;
   char c;
   Bytef buf[10];
@@ -194,15 +194,25 @@ int read_gz_header(t_streamp tsp) {
   if (buf[2] != 8 || buf[3] != (1 << 4))
     return 1;
   
-  /* check comment magic */
-  /* less than or equal to consume null terminator too */
-  while (p <= strlen(signature)) {
+  // check comment magic: start sequence
+  while (p < strlen(signature_start)) {
     if (read(tsp->fd, &c, 1) != 1)
       return -1;
-    if (c != signature[p])
+    if (c != signature_start[p])
       return 1;
     ++p;
   }
+  // comment magic: version character (just one for now)
+  if (read(tsp->fd, &c, 1) != 1)
+    return -1;
+  // zlib archives can have v1 through vCURRENT inclusive
+  if (c - '0' < 1 || c - '0' > TARIX_FORMAT_VERSION)
+    return 1;
+  // comment magic: null terminator
+  if (read(tsp->fd, &c, 1) != 1)
+    return -1;
+  if (c != 0)
+    return 1;
   
   return 0;
 }

@@ -20,9 +20,11 @@
 #ifndef __TARIX_H__
 #define __TARIX_H__
 
-#define TARIX_FMT_VERSION_OLD "0"
-#define TARIX_FMT_VERSION_NEW "1"
-#define TARIX_VERSION "1.0.5"
+#define stringify(x) #x
+
+#define TARIX_FORMAT_VERSION 2
+#define TARIX_FORMAT_STRING "2"
+#define TARIX_VERSION "1.0.6"
 #define TARIX_DEF_OUTFILE "out.tarix"
 
 int create_index(const char *indexfile, const char *tarfile,

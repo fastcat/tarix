@@ -87,18 +87,11 @@ static t_streamp init_ts(t_streamp tsp, int fd, int usemt, int blksz,
     int zlib_level) {
   /* allocate the stream data */
   if (tsp == NULL)
-    tsp = (t_streamp)malloc(sizeof(t_stream));
+    tsp = calloc(1, sizeof(t_stream));
 
   /* initialize fields */
   tsp->fd = fd;
-  tsp->bufsz = 0;
-  tsp->inbuf = NULL;
-  tsp->outbuf = NULL;
   tsp->zlib_err = Z_OK;
-  tsp->zsp = NULL;
-  tsp->crc32 = 0;
-  tsp->raw_bytes = 0;
-  tsp->zlib_bytes = 0;
   tsp->usemt = usemt;
   tsp->blksz = blksz <= 0 ? TARBLKSZ : blksz;
   
@@ -125,10 +118,7 @@ static t_streamp init_ts(t_streamp tsp, int fd, int usemt, int blksz,
   
   if (zlib_level > 0) {
     /* create the zlib stream */
-    tsp->zsp = (z_streamp)malloc(sizeof(z_stream));
-    tsp->zsp->zalloc = NULL;
-    tsp->zsp->zfree = NULL;
-    tsp->zsp->opaque = NULL;
+    tsp->zsp = calloc(1, sizeof(z_stream));
     
     init_ts_buffers(tsp);
   }
