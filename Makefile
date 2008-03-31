@@ -1,9 +1,28 @@
 # Makefile for tarix
 
 TARGETS:=bin/tarix bin/fuse_tarix
+DISABLED_TARGETS:=
+MISSING_DEPS:=
 
-MAIN_SRC:=src/tarix.c src/fuse_tarix.c
-LIB_SRCS:=src/create_index.c src/extract_files.c src/portability.c \
+CPPFLAGS_FUSE:=$(strip $(shell pkg-config fuse --cflags --silence-errors))
+CPPFLAGS_GLIB:=$(strip $(shell pkg-config glib-2.0 --cflags --silence-errors))
+LDFLAGS_FUSE:=$(strip $(shell pkg-config fuse --libs --silence-errors))
+LDFLAGS_GLIB:=$(strip $(shell pkg-config glib-2.0 --libs --silence-errors))
+
+# disable fuse if it's not available
+ifeq (${CPPFLAGS_FUSE},)
+	TARGETS:=$(filter-out bin/fuse%,${TARGETS})
+	DISABLED_TARGETS+=disabled-fuse_tarix
+	MISSING_DEPS+=missing-fuse
+endif
+ifeq (${CPPFLAGS_GLIB},)
+	TARGETS:=$(filter-out bin/fuse%,${TARGETS})
+	DISABLED_TARGETS+=disabled-fuse_tarix
+	MISSING_DEPS+=missing-glib
+endif
+
+MAIN_SRC=$(patsubst bin/%,src/%.c,${TARGETS})
+LIB_SRCS=src/create_index.c src/extract_files.c src/portability.c \
 	src/tstream.c src/crc32.c src/ts_util.c \
 	src/lineloop.c src/index_parser.c
 SOURCES=${MAIN_SRC} ${LIB_SRCS}
@@ -27,26 +46,15 @@ else
 CFLAGS_O=-O1
 endif
 CFLAGS=-Wall -Werror -g -std=gnu99 $(CFLAGS_O)
-CPPFLAGS_FUSE:=$(strip $(shell pkg-config fuse --cflags))
-CPPFLAGS_GLIB:=$(strip $(shell pkg-config glib-2.0 --cflags))
 CPPFLAGS_fuse_tarix:= ${CPPFLAGS_FUSE} ${CPPFLAGS_GLIB}
 LDFLAGS+=-lz
-LDFLAGS_FUSE:=$(strip $(shell pkg-config fuse --libs))
-LDFLAGS_GLIB:=$(strip $(shell pkg-config glib-2.0 --libs))
 LDFLAGS_fuse_tarix:=${LDFLAGS_FUSE} ${LDFLAGS_GLIB}
 CC=gcc
 INSTBASE=/usr/local
 
-# disable fuse if it's not available
-ifeq (${CPPFLAGS_FUSE},)
-	TARGETS:=$(filter-out bin/fuse%,${TARGETS})
-else ifeq (${CPPFLAGS_GLIB},)
-	TARGETS:=$(filter-out bin/fuse%,${TARGETS})
-endif
-
 .PHONY :: all dep build_test test debuginfo ${TESTS}
 
-all : ${TARGETS}
+all : ${TARGETS} ${MISSING_DEPS} ${DISABLED_TARGETS}
 
 dep : ${DEPS}
 
@@ -102,5 +110,15 @@ distclean: clean
 
 debuginfo:
 	@echo TARGETS=${TARGETS}
+	@echo DEPS=${DEPS}
+
+disabled-%:
+	@echo DISABLED: $*
+	@echo "    Not building $* because of missing dependencies"
+
+missing-%:
+	@echo "MISSING: $*"
+	@echo "    Some components were not built because the $* dependency"
+	@echo "    is unavailable or could not be found with pkg-config"
 
 -include ${DEPS} ${T_DEPS}

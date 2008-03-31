@@ -13,6 +13,12 @@ by editing the variables at the top of the Makefile.
 
 Tarix requires the zlib headers and library.
 
+There is also an optional FUSE program to mount indexed archives.  Building
+the FUSE helper requires the fuse headers and libraries, and the glib-2.0
+headers and libraries.  If these are missing or cannot be found, the build
+process will tell you that it cannot build the fuse helper.
+
 Known Supported Platforms:
 	Linux
 	FreeBSD
+	Cygwin (no magnetic tape or fuse support)
