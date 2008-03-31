@@ -49,8 +49,6 @@ struct extract_files_state {
 int extract_files_lineloop_processor(char *line, void *data) {
   struct extract_files_state *state = (struct extract_files_state*)data;
   
-  unsigned long ioffset, ilen;
-  off64_t zoffset;
   int n;
   /* for the DMSG macro */
   int debug_messages = state->debug_messages;
@@ -60,9 +58,11 @@ int extract_files_lineloop_processor(char *line, void *data) {
     if (init_index_parser(&state->ipstate, line) != 0)
       return 1;
     state->ipstate.allocate_filename = 0;
+    state->gotheader = 1;
   } else {
     int extract = 0;
     struct index_entry entry;
+    memset(&entry, 0, sizeof(entry));
     
     if (parse_index_line(&state->ipstate, line, &entry) != 0)
       return 1;
@@ -81,20 +81,20 @@ int extract_files_lineloop_processor(char *line, void *data) {
       DMSG("extracting %s\n", entry.filename);
       /* seek to the record start and then pass the record through */
       /* don't actually seek if we're already there */
-      if (state->curpos != ioffset) {
-        destoff = state->zlib_level ? zoffset : (off64_t)ioffset * TARBLKSZ;
+      if (state->curpos != entry.ioffset) {
+        destoff = state->zlib_level ? entry.zoffset : entry.ioffset * TARBLKSZ;
         DMSG("seeking to %lld\n", (long long)destoff);
         if (ts_seek(state->tsp, destoff) != 0) {
           fprintf(stderr, "seek error\n");
           return 1;
         }
-        state->curpos = ioffset;
+        state->curpos = entry.ioffset;
       }
-      DMSG("reading %ld records\n", ilen);
+      DMSG("reading %ld records\n", entry.ilen);
       /* this destroys ilen, but that's ok since we're only gonna
        * extract the file once
        */
-      for (; ilen > 0; --ilen) {
+      for (; entry.ilen > 0; --entry.ilen) {
         if ((n = ts_read(state->tsp, passbuf, TARBLKSZ)) < TARBLKSZ) {
           if (n >= 0)
             perror("partial tarfile read");
@@ -102,7 +102,7 @@ int extract_files_lineloop_processor(char *line, void *data) {
             ptserror("read tarfile", n, state->tsp);
           return 2;
         }
-        DMSG("read a rec, now at %lld, %ld left\n", (long long)state->curpos, ilen-1);
+        DMSG("read a rec, now at %lld, %ld left\n", (long long)state->curpos, entry.ilen - 1);
         ++state->curpos;
         if ((n = write(state->outfd, passbuf, TARBLKSZ)) < TARBLKSZ) {
           perror((n > 0) ? "partial tarfile write" : "write tarfile");
@@ -122,6 +122,8 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
   int n;
   int index, tar;
   struct extract_files_state state;
+  
+  memset(&state, 0, sizeof(state));
   
   /* the basic idea:
    * read the index an entry at a time

@@ -1,3 +1,6 @@
+1.0.4 (dev)
+	* fix major bugs in 1.0.3 introduced by fuse refactoring
+
 1.0.3 (dev)
 	* bugfixes
 	* fuse work

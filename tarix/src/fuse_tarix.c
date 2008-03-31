@@ -355,6 +355,9 @@ static void usage() {
 int main(int argc, char *argv[])
 {
   int tarfd, indexfd;
+  
+  memset(&tarixfs, 0, sizeof(tarixfs));
+  
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   
   if (fuse_opt_parse(&args, &tarixfs, tarix_opts, tarix_opt_proc) == -1)
@@ -389,6 +392,7 @@ int main(int argc, char *argv[])
   
   /* read the index, load all the entries into the hash table */
   struct index_parser_state ipstate;
+  memset(&ipstate, 0, sizeof(ipstate));
   ipstate.version = -1;
   ipstate.allocate_filename = 1;
   if (lineloop(indexfd, index_lineloop, &ipstate) != 0)
