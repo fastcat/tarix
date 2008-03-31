@@ -266,6 +266,7 @@ fprintf(stderr, "WARN: linked '%s' to non-dir parent '%s'\n", path, ppath);
 static int fill_link_nodes(struct index_parser_state *ipstate) {
   /* create missing (implicit) entries */
   struct cmissing_state cmstate;
+  /* cmstate is fully initialized here, don't need to zero it */
   /* spool new entries in a hash */
   cmstate.newentries = g_hash_table_new(g_str_hash, g_str_equal);
   cmstate.ipstate = ipstate;

@@ -18,7 +18,8 @@ T_TARGETS=$(patsubst test/%.c,bin/test/%,${T_SOURCES})
 TESTS=$(patsubst test/%.c,test-%,${T_SOURCES})
 
 CPPFLAGS=-Isrc -D_GNU_SOURCE
-CFLAGS=-Wall -Werror -g
+# some warnings only can be shown with -O1
+CFLAGS=-Wall -Werror -g -O1
 CPPFLAGS_fuse_tarix:=$(shell pkg-config fuse --cflags) $(shell pkg-config glib-2.0 --cflags)
 # for cygwin, export LDFLAGS=-L/usr/bin
 LDFLAGS+=-lz

@@ -28,6 +28,7 @@
 int p_mt_setblk(int fd, int blksz)
 {
 	struct mtop mt_op;
+	/* mt_op gets fully initialized below, doesn't need to be zeroed */
 	
 	#if defined(__FreeBSD__)
 		mt_op.mt_op = MTSETBSIZ;
@@ -47,6 +48,7 @@ int p_mt_getpos(int fd, off64_t *offset)
 		*offset = mt_pos;
 	#else
 		struct mtpos mt_pos;
+		/* mtpos is fully initialized here, no need for zeroing */
 		mt_pos.mt_blkno = *offset;
 		ioctr = ioctl(fd, MTIOCPOS, &mt_pos);
 		*offset = mt_pos.mt_blkno;
@@ -62,6 +64,7 @@ int p_mt_setpos(int fd, off64_t offset)
 		return ioctl(fd, MTIOCHLOCATE, &mt_pos);
 	#else
 		struct mtop mt_op;
+		/* mt_op gets fully initialized below, doesn't need to be zeroed */
 		mt_op.mt_op = MTSEEK;
 		mt_op.mt_count = offset;
 		return ioctl(fd, MTIOCTOP, &mt_op);
