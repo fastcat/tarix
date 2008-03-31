@@ -284,9 +284,6 @@ enum tarix_opt_keys {
 
 #define TARIX_OPT(t, p, v) { t, offsetof(struct tarixfs_t, p), v }
 static struct fuse_opt tarix_opts[] = {
-/*
-  TARIX_OPT("tarix_str=%s", tarix_str, 0),
-*/
   TARIX_OPT("tar=%s", tarfilename, 0),
   TARIX_OPT("tarix=%s", indexfilename, 0),
   FUSE_OPT_KEY("zlib", TARIX_KEY_ZLIB),
@@ -349,7 +346,12 @@ int index_lineloop(char *line, void *data) {
 }
 
 static void usage() {
-  /*TODO*/
+  fprintf(stderr,
+    "Tarix options (for -o):\n"
+    "    tar=tarfile            tar file to use\n"
+    "    tarix=indexfile        tarix index to use\n"
+    "    zlib                   enable zlib reading\n"
+    );
 }
 
 int main(int argc, char *argv[])
@@ -364,7 +366,7 @@ int main(int argc, char *argv[])
     return 1;
   
   if (tarixfs.flags_norun) {
-    if (tarixfs.flags_norun & TARIX_KEY_HELP)
+    if ((tarixfs.flags_norun & TARIX_KEY_HELP) != 0)
       usage();
     return fuse_main(args.argc, args.argv, &null_oper, NULL);
   }

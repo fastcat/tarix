@@ -27,46 +27,46 @@
 
 int p_mt_setblk(int fd, int blksz)
 {
-	struct mtop mt_op;
-	/* mt_op gets fully initialized below, doesn't need to be zeroed */
-	
-	#if defined(__FreeBSD__)
-		mt_op.mt_op = MTSETBSIZ;
-	#else
-		mt_op.mt_op = MTSETBLK;
-	#endif
-	mt_op.mt_count = blksz;
-	return ioctl(fd, MTIOCTOP, &mt_op);
+  struct mtop mt_op;
+  /* mt_op gets fully initialized below, doesn't need to be zeroed */
+  
+  #if defined(__FreeBSD__)
+    mt_op.mt_op = MTSETBSIZ;
+  #else
+    mt_op.mt_op = MTSETBLK;
+  #endif
+  mt_op.mt_count = blksz;
+  return ioctl(fd, MTIOCTOP, &mt_op);
 }
 
 int p_mt_getpos(int fd, off64_t *offset)
 {
-	int ioctr;
-	#if defined(__FreeBSD__)
-		u_int32_t mt_pos = *offset;
-		ioctr = ioctl(fd, MTIOCRDHPOS, &mt_pos);
-		*offset = mt_pos;
-	#else
-		struct mtpos mt_pos;
-		/* mtpos is fully initialized here, no need for zeroing */
-		mt_pos.mt_blkno = *offset;
-		ioctr = ioctl(fd, MTIOCPOS, &mt_pos);
-		*offset = mt_pos.mt_blkno;
-	#endif
-	return ioctr;
+  int ioctr;
+  #if defined(__FreeBSD__)
+    u_int32_t mt_pos = *offset;
+    ioctr = ioctl(fd, MTIOCRDHPOS, &mt_pos);
+    *offset = mt_pos;
+  #else
+    struct mtpos mt_pos;
+    /* mtpos is fully initialized here, no need for zeroing */
+    mt_pos.mt_blkno = *offset;
+    ioctr = ioctl(fd, MTIOCPOS, &mt_pos);
+    *offset = mt_pos.mt_blkno;
+  #endif
+  return ioctr;
 }
 
 /* mt uses block based seeks */
 int p_mt_setpos(int fd, off64_t offset)
 {
-	#if defined(__FreeBSD__)
-		u_int32_t mt_pos = offset;
-		return ioctl(fd, MTIOCHLOCATE, &mt_pos);
-	#else
-		struct mtop mt_op;
-		/* mt_op gets fully initialized below, doesn't need to be zeroed */
-		mt_op.mt_op = MTSEEK;
-		mt_op.mt_count = offset;
-		return ioctl(fd, MTIOCTOP, &mt_op);
-	#endif
+  #if defined(__FreeBSD__)
+    u_int32_t mt_pos = offset;
+    return ioctl(fd, MTIOCHLOCATE, &mt_pos);
+  #else
+    struct mtop mt_op;
+    /* mt_op gets fully initialized below, doesn't need to be zeroed */
+    mt_op.mt_op = MTSEEK;
+    mt_op.mt_count = offset;
+    return ioctl(fd, MTIOCTOP, &mt_op);
+  #endif
 }
