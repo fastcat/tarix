@@ -1,9 +1,9 @@
 # Makefile for tarix
 
-TARGETS=bin/tarix bin/fuse_tarix
+TARGETS:=bin/tarix bin/fuse_tarix
 
-MAIN_SRC=src/tarix.c src/fuse_tarix.c
-LIB_SRCS=src/create_index.c src/extract_files.c src/portability.c \
+MAIN_SRC:=src/tarix.c src/fuse_tarix.c
+LIB_SRCS:=src/create_index.c src/extract_files.c src/portability.c \
 	src/tstream.c src/crc32.c src/ts_util.c \
 	src/lineloop.c src/index_parser.c
 SOURCES=${MAIN_SRC} ${LIB_SRCS}
@@ -27,14 +27,24 @@ else
 CFLAGS_O=-O1
 endif
 CFLAGS=-Wall -Werror -g -std=gnu99 $(CFLAGS_O)
-CPPFLAGS_fuse_tarix:=$(shell pkg-config fuse --cflags) $(shell pkg-config glib-2.0 --cflags)
-# for cygwin, export LDFLAGS=-L/usr/bin
+CPPFLAGS_FUSE:=$(strip $(shell pkg-config fuse --cflags))
+CPPFLAGS_GLIB:=$(strip $(shell pkg-config glib-2.0 --cflags))
+CPPFLAGS_fuse_tarix:= ${CPPFLAGS_FUSE} ${CPPFLAGS_GLIB}
 LDFLAGS+=-lz
-LDFLAGS_fuse_tarix:=$(shell pkg-config fuse --libs) $(shell pkg-config glib-2.0 --libs)
+LDFLAGS_FUSE:=$(strip $(shell pkg-config fuse --libs))
+LDFLAGS_GLIB:=$(strip $(shell pkg-config glib-2.0 --libs))
+LDFLAGS_fuse_tarix:=${LDFLAGS_FUSE} ${LDFLAGS_GLIB}
 CC=gcc
 INSTBASE=/usr/local
 
-.PHONY :: all dep build_test test ${TESTS}
+# disable fuse if it's not available
+ifeq (${CPPFLAGS_FUSE},)
+	TARGETS:=$(filter-out bin/fuse%,${TARGETS})
+else ifeq (${CPPFLAGS_GLIB},)
+	TARGETS:=$(filter-out bin/fuse%,${TARGETS})
+endif
+
+.PHONY :: all dep build_test test debuginfo ${TESTS}
 
 all : ${TARGETS}
 
@@ -60,10 +70,10 @@ ${OBJECTS} ${DEPS} : obj/.d bin/.d
 ${T_OBJECTS} ${T_DEPS} : obj/test/.d bin/test/.d
 
 bin/%: obj/%.o ${LIB_OBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} $(LDFLAGS_$(*)) -o $@ $^
+	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} $(LDFLAGS_$(*))
 
 bin/test/%: obj/test/%.o ${LIB_OBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} -o $@ $^
+	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS}
 
 %/.d :
 	@mkdir -p $*
@@ -89,5 +99,8 @@ clean:
 
 distclean: clean
 	rm -rf bin/
+
+debuginfo:
+	@echo TARGETS=${TARGETS}
 
 -include ${DEPS} ${T_DEPS}
