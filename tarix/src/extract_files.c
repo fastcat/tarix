@@ -62,11 +62,17 @@ int extract_files_lineloop_processor(char *line, void *data) {
     state->gotheader = 1;
   } else {
     int extract = 0;
+    int parse_result;
     struct index_entry entry;
     memset(&entry, 0, sizeof(entry));
     
-    if (parse_index_line(&state->ipstate, line, &entry) != 0)
+    parse_result = parse_index_line(&state->ipstate, line, &entry);
+    if (parse_result < 0)
+      /* error */
       return 1;
+    if (parse_result > 0)
+      /* comment line */
+      return 0;
 
     /* take action on the line */
     for (n = 0; n < state->argc; ++n) {
