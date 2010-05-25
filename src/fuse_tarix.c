@@ -329,10 +329,17 @@ int index_lineloop(char *line, void *data) {
     if (init_index_parser(ipstate, line) != 0)
       return 1;
   } else {
+    int parse_result;
     struct index_node *node = calloc(1, sizeof(*node));
     /* make sure all the pointers in *node are NULL */
-    if (parse_index_line(ipstate, line, &node->entry) != 0)
+    parse_result = parse_index_line(ipstate, line, &node->entry);
+    if (parse_result < 0)
+      /* error */
       return 1;
+    if (parse_result > 0)
+      /* comment line */
+      return 0;
+
     /* ensure directory entries are correct: not /-terminated */
     int namelen = strlen(node->entry.filename);
     /* could merge the case of no leading but a trailing slash and get fewer allocs */

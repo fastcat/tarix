@@ -43,6 +43,21 @@ int parse_index_line(struct index_parser_state *state, char *line, struct index_
   int fnpos, ssret, sscount;
   
   entry->version = state->version;
+  entry->num = ++state->last_num;
+  if (entry->filename_allocated)
+  {
+    free(entry->filename);
+    entry->filename = NULL;
+    entry->filename_allocated = 0;
+  }
+  if (line[0] == '#')
+  {
+    entry->recordtype = '#';
+    entry->blocknum = -1;
+    entry->blocklength = -1;
+    entry->offset = -1;
+    return 0;
+  }
   
   switch (state->version) {
     case 0:
@@ -72,14 +87,16 @@ int parse_index_line(struct index_parser_state *state, char *line, struct index_
     return 1;
   }
   
-  if (entry->filename_allocated)
-    free(entry->filename);
   if (state->allocate_filename)
+  {
     entry->filename = strdup(line + fnpos);
+    entry->filename_allocated = 1;
+  }
   else
+  {
     entry->filename = line + fnpos;
-  
-  entry->num = ++state->last_num;
+    entry->filename_allocated = 0;
+  }
   
   return 0;
 }
