@@ -28,7 +28,7 @@
 
 int show_help() {
   fprintf(stderr,
-    "Usage: tarix [-hizx] [-<n>] [-f index_file] [-t tarfile]\n"
+    "Usage: tarix [-hizx] [-<n>] [-f index_file] [-t tarfile] [<filenames>]\n"
     "  -h   Show this help\n"
     "  -i   Explicitly create index, don't pass tar data to stdout\n"
     "  -z   Enable zlib (de)compression (default off)\n"
@@ -48,6 +48,10 @@ int show_help() {
     "An archive created with zlib must be extracted thus too.\n"
     "A zlib'd archive will be readable with gunzip, but an archive\n"
     "compressed with gzip will not be readable by tarix\n"
+    "\n"
+    "If extracting an indexed archive (-x), then a list of file or directory\n"
+    "names can be passed as arguments, and will be used to restrict the items\n"
+    "extracted, similar to how tar -x processes arguments\n"
   );
   return 0;
 }
