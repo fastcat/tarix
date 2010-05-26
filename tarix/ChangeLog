@@ -1,4 +1,4 @@
-1.0.7 (unreleased yet)
+1.0.7
 	* Several suggestions from Thomas <metaf4 -at- users.askja.de>:
 	* Mention in --help output the ability to list paths to extract when
 	  calling tarix -x
