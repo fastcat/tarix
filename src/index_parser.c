@@ -56,7 +56,7 @@ int parse_index_line(struct index_parser_state *state, char *line, struct index_
     entry->blocknum = -1;
     entry->blocklength = -1;
     entry->offset = -1;
-    return 0;
+    return 1;
   }
   
   switch (state->version) {
