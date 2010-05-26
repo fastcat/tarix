@@ -25,16 +25,21 @@
                      
 #include "tarix.h"
 
+#define OPTSTR_BASE "dghHimf:t:xz123456789"
 #ifdef FNM_LEADING_DIR
-#define OPTSTR "dgGhimf:t:xz123456789"
+#define OPTSTR_FNM "G"
 #else
-#define OPTSTR "dghimf:t:xz123456789"
+#define OPTSTR_FNM ""
 #endif
 
-int show_help() {
-  fprintf(stderr,
-    "Usage: tarix [-hizx] [-<n>] [-f index_file] [-t tarfile] [<filenames>]\n"
-    "  -h   Show this help\n"
+#define OPTSTR (OPTSTR_BASE OPTSTR_FNM)
+
+int show_help(int long_help) {
+  fprintf(stdout, "%s",
+    /* TODO: remove -G from this if it's not supported */
+    "Usage: tarix [-gGhHizx] [-<n>] [-f index_file] [-t tarfile] [<filenames>]\n"
+    "  -h   Show short help\n"
+    "  -H   Show long help\n"
     "  -i   Explicitly create index, don't pass tar data to stdout\n"
     "  -z   Enable zlib (de)compression (default off)\n"
     "  -x   Use index to extract tar file\n"
@@ -43,10 +48,12 @@ int show_help() {
     "  -t   Set tar file to use (otherwise stdin)\n"
     "  -m   Use mt (magnetic tape) IOCTLs for seeking instead of lseek\n"
     "  -g   Interpret <filenames> as globs matching exact names\n"
-    "  -G   Interpret <filenames> as globs matching exact names,\n"
 #ifdef FNM_LEADING_DIR /* FNM_LEADING_DIR is a GNU extension */
+    "  -G   Interpret <filenames> as globs matching exact names,\n"
     "       or matching a directory name to get it and all its contents\n"
 #endif
+  );
+  if (long_help) fprintf(stdout, "%s",
     "\n"
     "The environment variable TARIX will be examined for arguments in\n"
     "addition to the command line\n"
@@ -69,49 +76,64 @@ int show_help() {
 enum tarix_action {
   CREATE_INDEX,
   SHOW_HELP,
+  LONG_HELP,
   EXTRACT_FILES
 };
 
-static int envgetopt(char **evarp, char *optstr) {
+static int envgetopt(char **evarp, char *optstr)
+{
   char *evar = *evarp;
   int i;
   int error = '?';
   while (*evar == ' ')
     ++evar;
-  if (evar[0] != '-') {
-    if (evar[0] != 0) {
+  if (evar[0] != '-')
+  {
+    if (evar[0] != 0)
+    {
       fprintf(stderr, "error in format for TARIX environ options\n");
       error = '?';
       optopt = evar[0];
-    } else {
+    }
+    else
+    {
       error = 0;
       *evarp = NULL;
     }
     return error;
   }
-  for (i = 0; i < strlen(optstr); ++i) {
+  for (i = 0; i < strlen(optstr); ++i)
+  {
     if (optstr[i] == ':')
       continue;
-    if (evar[1] == optstr[i]) {
-      if (optstr[i+1] == ':') {
+    if (evar[1] == optstr[i])
+    {
+      if (optstr[i+1] == ':')
+      {
         char *spos;
-        if (evar[2] != ' ') {
+        if (evar[2] != ' ')
+        {
           error = ':';
           break;
         }
         spos = strchr(evar + 3, ' ');
-        if (spos == NULL) {
-          if (strlen(evar + 3) == 0) {
+        if (spos == NULL)
+        {
+          if (strlen(evar + 3) == 0)
+          {
             error = ':';
             break;
           }
           /* this is one short so incr below is correct */
           spos = evar + 3 + strlen(evar + 3) - 1;
-        } else
+        }
+        else
           *spos = 0;
         optarg = evar + 3;
         *evarp = spos + 1;
-      } else {
+      }
+      else
+      {
         *evarp = evar + 2;
       }
       optopt = evar[1];
@@ -125,7 +147,8 @@ static int envgetopt(char **evarp, char *optstr) {
   return error;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   int action = CREATE_INDEX;
   int opt;
   char *indexfile = NULL;
@@ -139,7 +162,8 @@ int main(int argc, char *argv[]) {
   char *tenv = getenv("TARIX");
   
   /* parse opts, do right thing */
-  while (1) {
+  while (1)
+  {
     if (tenv != NULL)
       opt = envgetopt(&tenv, OPTSTR);
     /* envgetopt may bail if there is nothing to parse */
@@ -147,7 +171,8 @@ int main(int argc, char *argv[]) {
       opt = getopt(argc, argv, OPTSTR);
     if (opt == -1)
       break; /* no more options */
-    switch (opt) {
+    switch (opt)
+    {
       case 'd':
         debug_messages = 1;
         break;
@@ -167,6 +192,9 @@ int main(int argc, char *argv[]) {
 #endif
       case 'h':
         action = SHOW_HELP;
+        break;
+      case 'H':
+        action = LONG_HELP;
         break;
       case 'i':
         action = CREATE_INDEX;
@@ -193,12 +221,12 @@ int main(int argc, char *argv[]) {
         break;
       case ':':
         fprintf(stderr, "Missing arg to '%c' option\n", optopt);
-        show_help();
+        show_help(0);
         return 1;
         break;
       case '?':
         fprintf(stderr, "Unrecognized option '%c'\n", optopt);
-        show_help();
+        show_help(0);
         return 1;
         break;
       default:
@@ -216,12 +244,15 @@ int main(int argc, char *argv[]) {
   if (!use_zlib)
     zlib_level = 0;
   
-  switch (action) {
+  switch (action)
+  {
     case CREATE_INDEX:
       return create_index(indexfile, tarfile, pass_through, zlib_level,
         debug_messages);
     case SHOW_HELP:
-      return show_help();
+      return show_help(0);
+    case LONG_HELP:
+      return show_help(1);
     case EXTRACT_FILES:
       return extract_files(indexfile, tarfile, use_mt, zlib_level,
         debug_messages, glob_flags, argc, argv, optind);
