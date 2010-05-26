@@ -5,3 +5,7 @@ TODO items, AKA desired features
 * error messages from zlib may be reported as i/o errors "Success"
 * expose volume header records as a symlink or other such construct in the
   fuse mount
+* Extract mode should have an option to treat arguments as globs instead of
+  prefixes
+* Extract mdoe should have an option to treat arguments as "none of these"
+  instead of "any of these", this should play nice with the glob mode.
