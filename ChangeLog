@@ -4,6 +4,8 @@
 	  calling tarix -x
 	* Allow comments in index file (any line starting with a #, no
 	  leading whitespace allowed for now)
+	* Add -g and -G options for using glob rules to match what to
+	  extract
 
 1.0.6 (unreleased)
 	* bugfixes
