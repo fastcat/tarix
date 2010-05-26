@@ -1,3 +1,7 @@
 Some of the code in tarix is derrived from GNU tar, and the perl
 Archive::Tar module.  Some is also taken from zlib example code, and
 RFC-1952.
+
+Thomas <metaf4 _at_ users.askja.de> provided several suggestions for
+improvements included in version 1.0.7, including glob and exclusion
+support.
