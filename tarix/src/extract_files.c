@@ -24,6 +24,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <fnmatch.h>
 
 #include "debug.h"
 #include "index_parser.h"
@@ -45,9 +46,12 @@ struct extract_files_state {
   int zlib_level;
   t_streamp tsp;
   int outfd;
+  /* flags to pass to fnmatch, if 0, don't use fnmatch */
+  int glob_flags;
 };
 
-int extract_files_lineloop_processor(char *line, void *data) {
+int extract_files_lineloop_processor(char *line, void *data)
+{
   struct extract_files_state *state = (struct extract_files_state*)data;
   
   int n;
@@ -55,75 +59,103 @@ int extract_files_lineloop_processor(char *line, void *data) {
   int debug_messages = state->debug_messages;
   off64_t destoff;
   
-  if (!state->gotheader) {
+  if (!state->gotheader)
+  {
     if (init_index_parser(&state->ipstate, line) != 0)
       return 1;
     state->ipstate.allocate_filename = 0;
     state->gotheader = 1;
-  } else {
-    int extract = 0;
-    int parse_result;
-    struct index_entry entry;
-    memset(&entry, 0, sizeof(entry));
-    
-    parse_result = parse_index_line(&state->ipstate, line, &entry);
-    if (parse_result < 0)
-      /* error */
-      return 1;
-    if (parse_result > 0)
-      /* comment line */
-      return 0;
+    return 0;
+  }
 
-    /* take action on the line */
-    for (n = 0; n < state->argc; ++n) {
-      /* does the start of the item match an extract arg? */
-      if (strncmp(state->argv[n], entry.filename, state->arglens[n]) == 0) {
+  int extract = 0;
+  int parse_result;
+  struct index_entry entry;
+  memset(&entry, 0, sizeof(entry));
+  
+  parse_result = parse_index_line(&state->ipstate, line, &entry);
+  if (parse_result < 0)
+    /* error */
+    return 1;
+  if (parse_result > 0)
+    /* comment line */
+    return 0;
+
+  /* take action on the line */
+  for (n = 0; n < state->argc; ++n)
+  {
+    if (state->glob_flags)
+    {
+      /* use fnmatch to test, instead of a simple compare */
+      int mr = fnmatch(state->argv[n], entry.filename, state->glob_flags);
+      if (mr == 0)
+      {
         extract = 1;
         break;
       }
+      if (mr != FNM_NOMATCH)
+      {
+        /* error in fnmatch */
+        perror("glob match error");
+        return 1;
+      }
     }
-    if (extract) {
-      char passbuf[TARBLKSZ];
-      
-      DMSG("extracting %s\n", entry.filename);
-      /* seek to the record start and then pass the record through */
-      /* don't actually seek if we're already there */
-      if (state->curpos != entry.blocknum) {
-        destoff = state->zlib_level ? entry.offset : entry.blocknum * TARBLKSZ;
-        DMSG("seeking to %lld\n", (long long)destoff);
-        if (ts_seek(state->tsp, destoff) != 0) {
-          fprintf(stderr, "seek error\n");
-          return 1;
-        }
-        state->curpos = entry.blocknum;
-      }
-      DMSG("reading %ld records\n", entry.blocklength);
-      for (unsigned long bnum = 0; bnum < entry.blocklength; ++bnum) {
-        if ((n = ts_read(state->tsp, passbuf, TARBLKSZ)) < TARBLKSZ) {
-          if (n >= 0)
-            perror("partial tarfile read");
-          else
-            ptserror("read tarfile", n, state->tsp);
-          return 2;
-        }
-        DMSG("read a rec, now at %lld, %ld left\n",
-          (long long)state->curpos, entry.blocklength - bnum - 1);
-        ++state->curpos;
-        if ((n = write(state->outfd, passbuf, TARBLKSZ)) < TARBLKSZ) {
-          perror((n > 0) ? "partial tarfile write" : "write tarfile");
-          return 2;
-        }
-        DMSG("wrote rec\n");
-      }
-    } /* if extract */
-  } /* if gotheader */
+    /* does the start of the item match an extract arg? */
+    else if (strncmp(state->argv[n], entry.filename, state->arglens[n]) == 0)
+    {
+      extract = 1;
+      break;
+    }
+  }
+  
+  if (!extract)
+    return 0;
+    
+  char passbuf[TARBLKSZ];
+  
+  DMSG("extracting %s\n", entry.filename);
+  /* seek to the record start and then pass the record through */
+  /* don't actually seek if we're already there */
+  if (state->curpos != entry.blocknum)
+  {
+    destoff = state->zlib_level ? entry.offset : entry.blocknum * TARBLKSZ;
+    DMSG("seeking to %lld\n", (long long)destoff);
+    if (ts_seek(state->tsp, destoff) != 0)
+    {
+      fprintf(stderr, "seek error\n");
+      return 1;
+    }
+    state->curpos = entry.blocknum;
+  }
+  DMSG("reading %ld records\n", entry.blocklength);
+  for (unsigned long bnum = 0; bnum < entry.blocklength; ++bnum)
+  {
+    if ((n = ts_read(state->tsp, passbuf, TARBLKSZ)) < TARBLKSZ)
+    {
+      if (n >= 0)
+        perror("partial tarfile read");
+      else
+        ptserror("read tarfile", n, state->tsp);
+      return 2;
+    }
+    DMSG("read a rec, now at %lld, %ld left\n",
+      (long long)state->curpos, entry.blocklength - bnum - 1);
+    ++state->curpos;
+    if ((n = write(state->outfd, passbuf, TARBLKSZ)) < TARBLKSZ)
+    {
+      perror((n > 0) ? "partial tarfile write" : "write tarfile");
+      return 2;
+    }
+    DMSG("wrote rec\n");
+  }
   
   return 0;
 }
 
 int extract_files(const char *indexfile, const char *tarfile, int use_mt,
-    int zlib_level, int debug_messages, int argc, char *argv[],
-    int firstarg) {
+    int zlib_level, int debug_messages, int glob_flags, int argc, char *argv[],
+    int firstarg)
+{
   int n;
   int index, tar;
   struct extract_files_state state;
@@ -168,6 +200,7 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
   
   state.debug_messages = debug_messages;
   state.zlib_level = zlib_level;
+  state.glob_flags = glob_flags;
   state.outfd = 1;
   
   lineloop(index, extract_files_lineloop_processor, (void*)&state);

@@ -21,10 +21,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fnmatch.h>
                      
 #include "tarix.h"
 
-#define OPTSTR "himf:t:xz123456789d"
+#ifdef FNM_LEADING_DIR
+#define OPTSTR "dgGhimf:t:xz123456789"
+#else
+#define OPTSTR "dghimf:t:xz123456789"
+#endif
 
 int show_help() {
   fprintf(stderr,
@@ -37,6 +42,11 @@ int show_help() {
     "  -f   Set index file to use (else $TARIX_OUTFILE or out.tarix)\n"
     "  -t   Set tar file to use (otherwise stdin)\n"
     "  -m   Use mt (magnetic tape) IOCTLs for seeking instead of lseek\n"
+    "  -g   Interpret <filenames> as globs matching exact names\n"
+    "  -G   Interpret <filenames> as globs matching exact names,\n"
+#ifdef FNM_LEADING_DIR /* FNM_LEADING_DIR is a GNU extension */
+    "       or matching a directory name to get it and all its contents\n"
+#endif
     "\n"
     "The environment variable TARIX will be examined for arguments in\n"
     "addition to the command line\n"
@@ -124,6 +134,7 @@ int main(int argc, char *argv[]) {
   int use_mt = 0;
   int use_zlib = 0;
   int zlib_level = 3;
+  int glob_flags = 0;
   int debug_messages = 0;
   char *tenv = getenv("TARIX");
   
@@ -137,6 +148,23 @@ int main(int argc, char *argv[]) {
     if (opt == -1)
       break; /* no more options */
     switch (opt) {
+      case 'd':
+        debug_messages = 1;
+        break;
+      case 'f':
+        if (indexfile)
+          free(indexfile);
+        indexfile = (char*)malloc(strlen(optarg) + 1);
+        strcpy(indexfile, optarg);
+        break;
+      case 'g':
+        glob_flags |= FNM_PATHNAME;
+        break;
+#ifdef FNM_LEADING_DIR
+      case 'G':
+        glob_flags |= FNM_PATHNAME | FNM_LEADING_DIR;
+        break;
+#endif
       case 'h':
         action = SHOW_HELP;
         break;
@@ -146,12 +174,6 @@ int main(int argc, char *argv[]) {
         break;
       case 'm':
         use_mt = 1;
-        break;
-      case 'f':
-        if (indexfile)
-          free(indexfile);
-        indexfile = (char*)malloc(strlen(optarg) + 1);
-        strcpy(indexfile, optarg);
         break;
       case 't':
         if (tarfile)
@@ -168,9 +190,6 @@ int main(int argc, char *argv[]) {
       case '1': case '2': case '3': case '4': case '5': case '6': case '7':
       case '9':
         zlib_level = opt - '0';
-        break;
-      case 'd':
-        debug_messages = 1;
         break;
       case ':':
         fprintf(stderr, "Missing arg to '%c' option\n", optopt);
@@ -205,7 +224,7 @@ int main(int argc, char *argv[]) {
       return show_help();
     case EXTRACT_FILES:
       return extract_files(indexfile, tarfile, use_mt, zlib_level,
-        debug_messages, argc, argv, optind);
+        debug_messages, glob_flags, argc, argv, optind);
     default:
       fprintf(stderr, "EEK! unknown action!\n");
       return 1;
