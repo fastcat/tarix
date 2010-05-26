@@ -24,7 +24,7 @@
 
 #define TARIX_FORMAT_VERSION 2
 #define TARIX_FORMAT_STRING "2"
-#define TARIX_VERSION "1.0.6"
+#define TARIX_VERSION "1.0.7"
 #define TARIX_DEF_OUTFILE "out.tarix"
 
 int create_index(const char *indexfile, const char *tarfile,
