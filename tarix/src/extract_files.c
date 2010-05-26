@@ -34,7 +34,8 @@
 #include "tarix.h"
 #include "tstream.h"
 
-struct extract_files_state {
+struct extract_files_state
+{
   int gotheader;
   struct index_parser_state ipstate;
   int argc;
@@ -48,6 +49,8 @@ struct extract_files_state {
   int outfd;
   /* flags to pass to fnmatch, if 0, don't use fnmatch */
   int glob_flags;
+  /* if set, then matched items are excluded */
+  int exclude_mode;
 };
 
 int extract_files_lineloop_processor(char *line, void *data)
@@ -108,6 +111,9 @@ int extract_files_lineloop_processor(char *line, void *data)
     }
   }
   
+  if (state->exclude_mode)
+    extract = !extract;
+  
   if (!extract)
     return 0;
     
@@ -153,8 +159,8 @@ int extract_files_lineloop_processor(char *line, void *data)
 }
 
 int extract_files(const char *indexfile, const char *tarfile, int use_mt,
-    int zlib_level, int debug_messages, int glob_flags, int argc, char *argv[],
-    int firstarg)
+    int zlib_level, int debug_messages, int glob_flags, int exclude_mode,
+    int argc, char *argv[], int firstarg)
 {
   int n;
   int index, tar;
@@ -201,6 +207,7 @@ int extract_files(const char *indexfile, const char *tarfile, int use_mt,
   state.debug_messages = debug_messages;
   state.zlib_level = zlib_level;
   state.glob_flags = glob_flags;
+  state.exclude_mode = exclude_mode;
   state.outfd = 1;
   
   lineloop(index, extract_files_lineloop_processor, (void*)&state);

@@ -25,7 +25,7 @@
                      
 #include "tarix.h"
 
-#define OPTSTR_BASE "dghHimf:t:xz123456789"
+#define OPTSTR_BASE "deghHimf:t:xz123456789"
 #ifdef FNM_LEADING_DIR
 #define OPTSTR_FNM "G"
 #else
@@ -52,6 +52,7 @@ int show_help(int long_help) {
     "  -G   Interpret <filenames> as globs matching exact names,\n"
     "       or matching a directory name to get it and all its contents\n"
 #endif
+    "  -e   Interpret <filenames> as items to exclude, instead of include\n"
   );
   if (long_help) fprintf(stdout, "%s",
     "\n"
@@ -158,6 +159,7 @@ int main(int argc, char *argv[])
   int use_zlib = 0;
   int zlib_level = 3;
   int glob_flags = 0;
+  int exclude_mode = 0;
   int debug_messages = 0;
   char *tenv = getenv("TARIX");
   
@@ -175,6 +177,9 @@ int main(int argc, char *argv[])
     {
       case 'd':
         debug_messages = 1;
+        break;
+      case 'e':
+        exclude_mode = 1;
         break;
       case 'f':
         if (indexfile)
@@ -255,7 +260,7 @@ int main(int argc, char *argv[])
       return show_help(1);
     case EXTRACT_FILES:
       return extract_files(indexfile, tarfile, use_mt, zlib_level,
-        debug_messages, glob_flags, argc, argv, optind);
+        debug_messages, glob_flags, exclude_mode, argc, argv, optind);
     default:
       fprintf(stderr, "EEK! unknown action!\n");
       return 1;

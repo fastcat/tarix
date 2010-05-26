@@ -15,7 +15,9 @@ tar -c -f - -C bin/test/ $sources | bin/tarix -zf bin/test/data.tarix >bin/test/
 [ -f bin/test/data.tgz ]
 cat bin/test/data.tarix
 #zcat bin/test/data.tgz | hexdump -C
-tar -tzv -f bin/test/data.tgz
+tar -tzvf bin/test/data.tgz
+items=`tar -tzvf bin/test/data.tgz | wc -l`
+[ $items -eq 4 ]
 
 # bsd tar doesn't support incremental or volume label
 if tar --version | grep GNU.tar ; then
@@ -29,5 +31,7 @@ if tar --version | grep GNU.tar ; then
   [ -f bin/test/data.incr.tgz ]
   cat bin/test/data.incr.tarix
   #zcat bin/test/data.incr.tgz | hexdump -C
-  tar -tzv -f bin/test/data.incr.tgz
+  tar -tzvf bin/test/data.incr.tgz
+  items=`tar -tzvf bin/test/data.incr.tgz | wc -l`
+  [ $items -eq 5 ]
 fi

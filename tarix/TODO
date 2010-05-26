@@ -5,5 +5,7 @@ TODO items, AKA desired features
 * error messages from zlib may be reported as i/o errors "Success"
 * expose volume header records as a symlink or other such construct in the
   fuse mount
-* Extract mdoe should have an option to treat arguments as "none of these"
-  instead of "any of these", this should play nice with the glob mode.
+* Glob mode should have a ** or ends-with mode.  This isn't something that
+  fnmatch implements natively, however, so we'd have to do it with string
+  processing and repeated calls to fnmatch, which would be ugly and possibly
+  slow.

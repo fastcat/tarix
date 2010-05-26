@@ -6,6 +6,7 @@
 	  leading whitespace allowed for now)
 	* Add -g and -G options for using glob rules to match what to
 	  extract
+	* Add -e mode to treat arguments as exclusions instead of inclusions
 
 1.0.6 (unreleased)
 	* bugfixes
