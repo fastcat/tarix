@@ -3,44 +3,18 @@ can be done rapidly, especially on slow devices like tape drives, providing
 that you can seek to arbitrary locations (at least on 512 byte boundaries)
 within the tar archive.
 
+For some simple examples of how to use it, see the QuickStart.
+
 Tarix is designed to work as a compression filter for tar with the
---use-compress-program option.  Tarix can either pass the tar archive
-straight through, or it can compress the archive using zlib on the way
-through.  Note that tarix does special things when using zlib to enable
-random access when extracting.  A regular gzip'd tar archive will not be
-usable at extraction time without first uncompressing it.
+--use-compress-program option.  It is capable of doing gzip/zlib compression
+on the archive while it indexes it.  When doing so, it does some special
+work so that it is still possible to seek in the compressed archive. 
+Tarix's compressed output is compatible with gzip, but an archive compressed
+by gzip will not have the seeking capabilities tarix needs.
 
-Because of how tar invokes compress programs, options are generally accepted
-through environment variables.  For manual usage, however, tarix can accept
-normal command line options.
-
-Tarix's output format is geared for simplicity and ease of use in a recovery
-mode.  For those reasons, it is a simple text format.  The goal behind this
-is to allow tarix's indexes to be used from even a basic recovery disk. 
-Using tarix's indexes requires only grep, sed, dd, and tar for basic usage. 
-tarix itself can use the index for fast extraction without convoluted usage
-of grep, sed, and dd.  When working with zlib compressed archives, random
-access extraction will require tarix because the available tools generally
-do not have the required seeking support.
-
-Currently tarix targets GNU tar archives.  It does currently try and support
-any of the fancier GNU tar extensions, such as sparse files and such,
-although it may work with them anyways, since it only looks at the file
-headers within the archive.  It can handle GNU's format for very long file
-names, though it will probably barf on filenames more than 511 chars long. 
-It should also be able to handle standard POSIX archives.
-
-Do not put newlines in your filenames, it *WILL* break tarix's output
-format (and probably lots of other things too).
-
-It is unknown if it will work with other tar programs, but the author would
-be very interested to hear about success or failure with them.  If
-supporting other formats does not excessively complicate tarix, it will be
-added if and when the necessary information about the format differences is
-provided to the author.
-
-Tarix's format uses 32 bit unsigned integers to count 512 byte blocks, so it
-should be able to handle archives up to 2 terabytes.
+Because you cannot pass options with --use-compress-program, tarix will look
+for options in the TARIX environment variable in addition to the command
+line.  The QuickStart shows examples of how to do this.
 
 Web Page: http://sf.net/projects/xtar/
 Alternate sites:

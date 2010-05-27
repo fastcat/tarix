@@ -1,0 +1,25 @@
+Currently tarix targets POSIX standard and GNU tar archives.  It does
+not try to support some of the fancier GNU tar extensions, such as
+sparse files or multi-volume archives, although it may work with them
+anyways, since it only looks at the file headers within the archive.
+
+Do not put newlines in your filenames, it *WILL* break tarix's index format
+(and probably lots of other things too).
+
+It can handle arbitrarily long filenames using the GNU extensions.
+
+It can handle GNU's listed incremental archives (there is nothing special
+about them, all of the special is contained in the incremental listing).
+
+Jorg Schilling's star appears to use many of the same extensions as GNU tar,
+so it should work fine, but I have not tested it.
+
+Basic tests have been done with BSD tar from FreeBSD and they appear to
+work.
+
+If you test it out with another version of tar, please let me know if it
+works or not.  If it doesn't, I'll try to fix it.
+
+Tarix's format uses 32 bit unsigned integers to count 512 byte blocks, so it
+can handle archives up to 2 terabytes uncompressed, beyond that failures
+will occur.  Enabling compression won't help.
