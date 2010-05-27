@@ -1,0 +1,31 @@
+Quick Start for using tarix
+
+These examples will assume you want to backup your /home directories into
+archives stored in /mnt/backup.  They assume that your copy of tar is gnu
+tar, and that you have installed tarix somewhere in your path.
+
+# Create a full compressed indexed backup
+$ export TARIX="-z -f /mnt/backup/homes.tarix"
+$ tar -c -f /mnt/backup/homes.tar.gz --use-compres-program=tarix /home
+
+# do the same thing, but compress it more
+$ export TARIX="-z -9 -f /mnt/backup/homes.tarix"
+$ tar -c -f /mnt/backup/homes.tar.gz --use-compres-program=tarix /home
+
+# restore bob's home directory into a temporary directory
+$ mkdir /tmp/restore
+$ cd /tmp/restore
+# !! You must pass the -x flag to tarix to tell it to extract files
+$ tarix -x -z -t /mnt/backup/homes.tar.gz -f /mnt/backup/homes.tarix | tar -x
+# you should now have /tmp/restore/home/bob/...
+
+# If you have fuse installed, you can use fuse_tarix to interactively browse
+# and extract items from an archive
+$ mkdir /tmp/restore_mount
+$ fuse_tarix /mnt/backup/homes.tar.gz /tmp/restore_mount \
+  -o zlib,index=/mnt/backup/homes.index
+$ cd /tmp/restore_mount
+$ cp home/bob/file_to_restore /home/bob/file_to_restore
+# don't forget to unmount the archive when you're done!
+$ cd /tmp
+$ fusermount -u /tmp/restore_mount
