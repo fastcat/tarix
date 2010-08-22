@@ -349,9 +349,18 @@ int index_lineloop(char *line, void *data) {
       node->stbuf.st_mode |= S_IFDIR;
     }
     if (node->entry.filename[0] != '/') {
-      char *sfilename = malloc(strlen(node->entry.filename) + 2);
-      sfilename[0] = '/';
-      strcpy(sfilename+1, node->entry.filename);
+      int nefnlen = strlen(node->entry.filename);
+      char *sfilename;
+      if (nefnlen >= 2 && strncmp("./", node->entry.filename, 2) == 0) {
+        // handle ./a/b/c => /a/b/c
+        sfilename = malloc(nefnlen);
+        strcpy(sfilename, node->entry.filename + 1);
+      } else {
+        // handle a/b/c => /a/b/c
+        sfilename = malloc(nefnlen + 2);
+        sfilename[0] = '/';
+        strcpy(sfilename+1, node->entry.filename);
+      }
       free(node->entry.filename);
       node->entry.filename = sfilename;
     }
