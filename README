@@ -16,7 +16,7 @@ Because you cannot pass options with --use-compress-program, tarix will look
 for options in the TARIX environment variable in addition to the command
 line.  The QuickStart shows examples of how to do this.
 
-Web Page: http://sf.net/projects/xtar/
+Web Page: https://github.com/fastcat/tarix/
 Alternate sites:
-  http://fastcat.org/software/
+  https://fastcat.org/software/
   http://reprehensible.net/~cheetah/tarix/
