@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config.h"
+
 #include "portability.h"
 #include "tstream.h"
 #include "ts_util.h"
@@ -46,6 +48,7 @@ static void init_ts_buffers(t_streamp tsp) {
 
 static int do_seek(t_streamp tsp, off64_t offset) {
   offset += tsp->baseoffset;
+#ifdef HAVE_MTIO_H
   if (tsp->usemt) {
     int tmp = p_mt_setpos(tsp->fd, offset / tsp->blksz);
     int remainder = offset % tsp->blksz;
@@ -65,11 +68,15 @@ static int do_seek(t_streamp tsp, off64_t offset) {
     }
     return 0;
   } else {
+#endif
     off64_t lsret = p_lseek64(tsp->fd, offset, SEEK_SET);
     return lsret < 0 ? -1 : 0;
+#ifdef HAVE_MTIO_H
   }
+#endif
 }
 
+#ifdef HAVE_MTIO_H
 static off64_t do_tell(t_streamp tsp) {
   off64_t pos;
   if (tsp->usemt) {
@@ -81,6 +88,7 @@ static off64_t do_tell(t_streamp tsp) {
     return pos;
   }
 }
+#endif
 
 /* common tsp init */
 static t_streamp init_ts(t_streamp tsp, int fd, int usemt, int blksz,
@@ -92,9 +100,12 @@ static t_streamp init_ts(t_streamp tsp, int fd, int usemt, int blksz,
   /* initialize fields */
   tsp->fd = fd;
   tsp->zlib_err = Z_OK;
+#ifdef HAVE_MTIO_H
   tsp->usemt = usemt;
+#endif
   tsp->blksz = blksz <= 0 ? TARBLKSZ : blksz;
   
+#ifdef HAVE_MTIO_H
   if (tsp->usemt) {
     int tmp = p_mt_setblk(tsp->fd, tsp->blksz);
     if (tmp < 0) {
@@ -109,8 +120,11 @@ static t_streamp init_ts(t_streamp tsp, int fd, int usemt, int blksz,
       tsp->zsp->msg = "get base offset error";
     }
   } else {
+#endif
     tsp->baseoffset = 0;
+#ifdef HAVE_MTIO_H
   }
+#endif
   if (tsp->baseoffset < 0) {
     tsp->zlib_err = Z_STREAM_ERROR;
     return tsp;

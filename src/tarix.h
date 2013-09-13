@@ -20,6 +20,8 @@
 #ifndef __TARIX_H__
 #define __TARIX_H__
 
+#include "files_list.h"
+
 #define stringify(x) #x
 
 #define TARIX_FORMAT_VERSION 2
@@ -29,8 +31,9 @@
 
 int create_index(const char *indexfile, const char *tarfile,
   int pass_through, int zlib_level, int debug_messages);
-int extract_files(const char *indexfile, const char *tarfile, int use_mt,
-  int zlib_level, int debug_messages, int glob_flags, int exclude_mode,
-  int argc, char *argv[], int firstarg);
+int extract_files(const char *indexfile, const char *tarfile,
+  const char *outfile, int use_mt, int zlib_level, int debug_messages,
+  int glob_flags, int exclude_mode, int exact_match,
+  const struct files_list_state *files_list);
 
 #endif /* __TARIX_H__ */

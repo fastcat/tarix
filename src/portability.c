@@ -17,6 +17,9 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "config.h"
+
+#ifdef HAVE_MTIO_H
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
 
@@ -70,3 +73,4 @@ int p_mt_setpos(int fd, off64_t offset)
     return ioctl(fd, MTIOCTOP, &mt_op);
   #endif
 }
+#endif /* HAVE_MTIO_H */
