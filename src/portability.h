@@ -36,6 +36,12 @@ typedef off_t off64_t;
 #define p_lseek64 lseek
 typedef off_t off64_t;
 
+#elif defined(__APPLE__)
+
+#define P_O_LARGEFILE 0
+#define p_lseek64 lseek
+typedef off_t off64_t;
+
 #else
 
 #define P_O_LARGEFILE O_LARGEFILE
@@ -43,8 +49,10 @@ typedef off_t off64_t;
 
 #endif
 
+#if HAVE_MTIO_H
 int p_mt_setblk(int fd, int blksz);
 int p_mt_getpos(int fd, off64_t *offset);
 int p_mt_setpos(int fd, off64_t offset);
+#endif
 
 #endif /* __PORTABILITY_H__ */

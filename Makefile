@@ -38,7 +38,7 @@ T_OBJECTS=$(patsubst test/%.c,obj/test/%.o,${T_SOURCES})
 T_DEPS=$(patsubst test/%.c,obj/test/%.d,${T_SOURCES})
 T_TARGETS=$(patsubst test/%.c,bin/test/%,${T_SOURCES})
 
-CPPFLAGS=-Isrc -D_GNU_SOURCE
+CPPFLAGS=-I. -Isrc -D_GNU_SOURCE
 # some warnings only can be shown with -O1
 ifdef DEBUG
 CFLAGS_O=
@@ -83,17 +83,28 @@ bin/%: obj/%.o ${LIB_OBJS}
 bin/test/%: obj/test/%.o ${LIB_OBJS}
 	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS}
 
+config.h:
+	@echo '#include <sys/mtio.h>' > .test.h
+	@if ${CC} -E ${CPPFLAGS} .test.h 1>/dev/null 2>&1 ; then \
+		echo '#define HAVE_MTIO_H 1' >> config.h ; \
+	else \
+		echo '#ifdef HAVE_MTIO_H' >> config.h ; \
+		echo '# undef HAVE_MTIO_H' >> config.h ; \
+		echo '#endif' >> config.h ; \
+	fi
+	@rm -f .test.h
+
 %/.d :
 	@mkdir -p $*
 	@touch $@
 
-obj/%.o : src/%.c
+obj/%.o : src/%.c config.h
 	${CC} ${CPPFLAGS} $(CPPFLAGS_$(*)) ${CFLAGS} $(CFLAGS_$(*)) -c $< -o $@
 
 obj/test/%.o : test/%.c
 	${CC} ${CPPFLAGS} ${CFLAGS} -c $< -o $@
 
-obj/%.d : src/%.c
+obj/%.d : src/%.c config.h
 	${CC} ${CPPFLAGS} $(CPPFLAGS_$(*)) -MM $< | sed -e 's/^\(.*\)\.o[ :]*/obj\/\1.o obj\/\1.d : /' >$@
 
 obj/test/%.d : test/%.c
@@ -103,7 +114,7 @@ install: all
 	install ${TARGETS} ${INSTBASE}/bin
 
 clean:
-	rm -rf obj/ out.tarix
+	rm -rf obj/ out.tarix config.h
 
 distclean: clean
 	rm -rf bin/

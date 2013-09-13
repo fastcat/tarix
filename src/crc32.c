@@ -19,6 +19,8 @@
 
 /* crc32 code from RFC-1952 */
 
+#include "config.h"
+
 /* Table of CRCs of all 8-bit messages. */
 unsigned long crc_table[256];
 

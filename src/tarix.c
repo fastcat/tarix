@@ -23,16 +23,23 @@
 #include <string.h>
 #include <fnmatch.h>
                      
+#include "config.h"
+
 #include "tarix.h"
 
-#define OPTSTR_BASE "deghHimf:t:xz123456789"
+#define OPTSTR_BASE "deghHif:t:xz123456789"
 #ifdef FNM_LEADING_DIR
 #define OPTSTR_FNM "G"
 #else
 #define OPTSTR_FNM ""
 #endif
+#ifdef HAVE_MTIO_H
+#define OPTSTR_MT "m"
+#else
+#define OPTSTR_MT ""
+#endif
 
-#define OPTSTR (OPTSTR_BASE OPTSTR_FNM)
+#define OPTSTR (OPTSTR_BASE OPTSTR_FNM OPTSTR_MT)
 
 int show_help(int long_help) {
   fprintf(stdout, "%s",
@@ -46,7 +53,9 @@ int show_help(int long_help) {
     "  -<n> Set zlib compression level (default 3, same meaning as gzip)\n"
     "  -f   Set index file to use (else $TARIX_OUTFILE or out.tarix)\n"
     "  -t   Set tar file to use (otherwise stdin)\n"
+#ifdef HAVE_MTIO_H
     "  -m   Use mt (magnetic tape) IOCTLs for seeking instead of lseek\n"
+#endif
     "  -g   Interpret <filenames> as globs matching exact names\n"
 #ifdef FNM_LEADING_DIR /* FNM_LEADING_DIR is a GNU extension */
     "  -G   Interpret <filenames> as globs matching exact names,\n"
@@ -205,9 +214,11 @@ int main(int argc, char *argv[])
         action = CREATE_INDEX;
         pass_through = 0;
         break;
+#ifdef HAVE_MTIO_H
       case 'm':
         use_mt = 1;
         break;
+#endif
       case 't':
         if (tarfile)
           free(tarfile);

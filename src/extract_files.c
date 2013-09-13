@@ -26,6 +26,8 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 
+#include "config.h"
+
 #include "debug.h"
 #include "index_parser.h"
 #include "lineloop.h"

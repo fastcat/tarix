@@ -45,8 +45,10 @@ typedef struct _t_stream {
   off64_t raw_bytes;
   /* number of zlib stream bytes processed so far (includes headers) */
   off64_t zlib_bytes;
+#if HAVE_MTIO_H
   /* boolean for using magnetic tape interface or not */
   int usemt;
+#endif
   /* block size for magnetic tap operations */
   int blksz;
   /* base offset of archive start */

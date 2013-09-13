@@ -24,6 +24,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "config.h"
+
 #include "tarix.h"
 #include "tstream.h"
 #include "ts_util.h"
