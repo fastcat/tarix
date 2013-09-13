@@ -43,7 +43,8 @@
 
 int show_help(int long_help) {
   fprintf(stdout, "%s",
-    "Usage: tarix [-aeghHinxz" OPTSTR_FNM OPTSTR_MT "] [-<n>] [-f index_file] [-t tarfile] [-o outfile] [-T list_file] [<filenames>]\n"
+    "Usage: tarix [-aeghHinxz" OPTSTR_FNM OPTSTR_MT "] [-<n>] [-f index_file] \n"
+    "       [-t tarfile] [-o outfile] [-T list_file] [<filenames>]\n"
     "  -h   Show short help\n"
     "  -H   Show long help\n"
     "  -i   Explicitly create index, don't pass tar data to stdout\n"
@@ -54,8 +55,10 @@ int show_help(int long_help) {
     "  -t   Set tar file to use (otherwise stdin)\n"
     "  -o   (use with -x) Set tar file to write, otherwise stdout\n"
     "  -T   (use with -x) Read the list of files to be extracted from list file\n"
-    "  -a   (use with -x) Filenames to extract must match exactly the files in index, not the start\n"
-    "  -n   (use with -T) Filenames from list file are separated by null characters, not by newlines\n"
+    "  -a   (use with -x) Filenames to extract must match exactly the files in\n"
+    "       index, not the start\n"
+    "  -n   (use with -T) Filenames from list file are separated by null characters,\n"
+    "       not by newlines\n"
 #ifdef HAVE_MTIO_H
     "  -m   Use mt (magnetic tape) IOCTLs for seeking instead of lseek\n"
 #endif
