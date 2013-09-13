@@ -21,6 +21,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "config.h"
+
 #include "lineloop.h"
 #include "tar.h"
 

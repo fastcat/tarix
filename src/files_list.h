@@ -1,6 +1,6 @@
 /*
  *  tarix - a GNU/POSIX tar indexer
- *  Copyright (C) 2006 Matthew "Cheetah" Gabeler-Lee
+ *  Copyright (C) 2013 Jean-Charles BERTIN
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,42 +17,21 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __PORTABILITY_H__
-#define __PORTABILITY_H__
+#ifndef __FILES_LIST_H__
+#define __FILES_LIST_H__
 
-#include <unistd.h>
-#include <sys/types.h>
-#include <limits.h>
+struct files_list_state
+{
+  size_t argc;
+  size_t argvlen;
+  const char **argv;
+  size_t *arglens;
+};
 
-#if defined(__FreeBSD__) /* on fbsd, all off_t are 64-bit */
+int read_listfile(const char *file, char sep, char **bufptr, size_t *lenptr);
+int append_args_to_files_list(struct files_list_state *files_list,
+                              int argc, char *argv[], int firstarg);
+int append_listfile_to_files_list(struct files_list_state *files_list,
+                                  char sep, char *buf, size_t buflen);
 
-#define P_O_LARGEFILE 0
-#define p_lseek64 lseek
-typedef off_t off64_t;
-
-#elif defined(__CYGWIN__)
-
-#define P_O_LARGEFILE 0
-#define p_lseek64 lseek
-typedef off_t off64_t;
-
-#elif defined(__APPLE__)
-
-#define P_O_LARGEFILE 0
-#define p_lseek64 lseek
-typedef off_t off64_t;
-
-#else
-
-#define P_O_LARGEFILE O_LARGEFILE
-#define p_lseek64 lseek64
-
-#endif
-
-#if HAVE_MTIO_H
-int p_mt_setblk(int fd, int blksz);
-int p_mt_getpos(int fd, off64_t *offset);
-int p_mt_setpos(int fd, off64_t offset);
-#endif
-
-#endif /* __PORTABILITY_H__ */
+#endif /* __FILES_LIST_H__ */
