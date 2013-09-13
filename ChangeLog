@@ -1,5 +1,10 @@
 <future>
 	* Documentation improvements
+	* Improvements from Jean-Charles BERTIN:
+		* OSX support
+		* Detect mt support or lack thereof, make it optional
+		* New command line options: -o, -T, -a, -n
+		* Build configuration options
 
 1.0.7
 	* Several suggestions from Thomas <metaf4 -at- users.askja.de>:
