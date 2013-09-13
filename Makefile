@@ -1,6 +1,8 @@
 # Makefile for tarix
 
-TARGETS:=bin/tarix bin/fuse_tarix
+DESTDIR?=bin
+OBJDIR?=obj
+TARGETS:=${DESTDIR}/tarix ${DESTDIR}/fuse_tarix
 DISABLED_TARGETS:=
 MISSING_DEPS:=
 
@@ -11,32 +13,48 @@ LDFLAGS_GLIB:=$(strip $(shell pkg-config glib-2.0 --libs --silence-errors))
 
 # disable fuse if it's not available
 ifeq (${CPPFLAGS_FUSE},)
-	TARGETS:=$(filter-out bin/fuse%,${TARGETS})
+	TARGETS:=$(filter-out ${DESTDIR}/fuse%,${TARGETS})
 	DISABLED_TARGETS+=disabled-fuse_tarix
 	MISSING_DEPS+=missing-fuse
 endif
 ifeq (${CPPFLAGS_GLIB},)
-	TARGETS:=$(filter-out bin/fuse%,${TARGETS})
+	TARGETS:=$(filter-out ${DESTDIR}/fuse%,${TARGETS})
 	DISABLED_TARGETS+=disabled-fuse_tarix
 	MISSING_DEPS+=missing-glib
 endif
 
-MAIN_SRC=$(patsubst bin/%,src/%.c,${TARGETS})
+MAIN_SRC=$(patsubst ${DESTDIR}/%,src/%.c,${TARGETS})
 LIB_SRCS=src/create_index.c src/extract_files.c src/portability.c \
 	src/tstream.c src/crc32.c src/ts_util.c \
 	src/lineloop.c src/index_parser.c src/files_list.c
 SOURCES=${MAIN_SRC} ${LIB_SRCS}
-OBJECTS=$(patsubst src/%.c,obj/%.o,${SOURCES})
-LIB_OBJS=$(patsubst src/%.c,obj/%.o,${LIB_SRCS})
-DEPS=$(patsubst src/%.c,obj/%.d,${SOURCES})
+OBJECTS=$(patsubst src/%.c,${OBJDIR}/%.o,${SOURCES})
+LIB_OBJS=$(patsubst src/%.c,${OBJDIR}/%.o,${LIB_SRCS})
+ifeq (${NODEPS},1)
+DEPS=
+else
+DEPS=$(patsubst src/%.c,${OBJDIR}/%.d,${SOURCES})
+endif
 
+ifeq (${NOTESTS},1)
+TESTS=
+T_SOURCES=
+T_TARGETS=
+T_OBJECTS=
+T_DEPS=
+else
 TESTS=$(patsubst test/%.sh,%,$(wildcard test/*.sh))
 _WANT_T_SOURCES=$(patsubst %,test/%.c,${TESTS})
 _HAVE_T_SOURCES=$(wildcard test/*.c)
 T_SOURCES=$(filter ${_HAVE_T_SOURCES},${_WANT_T_SOURCES})
-T_OBJECTS=$(patsubst test/%.c,obj/test/%.o,${T_SOURCES})
-T_DEPS=$(patsubst test/%.c,obj/test/%.d,${T_SOURCES})
-T_TARGETS=$(patsubst test/%.c,bin/test/%,${T_SOURCES})
+T_TARGETS=$(patsubst test/%.c,${DESTDIR}/test/%,${T_SOURCES})
+T_OBJECTS=$(patsubst test/%.c,${OBJDIR}/test/%.o,${T_SOURCES})
+ifeq (${NODEPS},1)
+T_DEPS=
+else
+T_DEPS=$(patsubst test/%.c,${OBJDIR}/test/%.d,${T_SOURCES})
+endif
+endif
 
 CPPFLAGS=-I. -Isrc -D_GNU_SOURCE
 # some warnings only can be shown with -O1
@@ -59,29 +77,29 @@ all : ${TARGETS} ${MISSING_DEPS} ${DISABLED_TARGETS}
 
 dep : ${DEPS}
 
-build_test: ${TARGETS} bin/test/.d ${T_TARGETS}
+build_test: ${TARGETS} ${DESTDIR}/test/.d ${T_TARGETS}
 
 test-%: build_test test/%.sh
 	@printf "Test: %-30s ..." $*
-	@if test/$*.sh >bin/test/$*.log 2>&1 ; then \
+	@if test/$*.sh >${DESTDIR}/test/$*.log 2>&1 ; then \
 		echo " OK" ; \
 	else \
 		echo FAILED ; \
-		cat bin/test/$*.log ; \
+		cat ${DESTDIR}/test/$*.log ; \
 		exit 1 ; \
 	fi
 
 test: build_test $(patsubst %,test-%,${TESTS})
 	@echo All tests appear to have passed
 
-${OBJECTS} ${DEPS} : obj/.d bin/.d
+${OBJECTS} ${DEPS} : ${OBJDIR}/.d ${DESTDIR}/.d
 
-${T_OBJECTS} ${T_DEPS} : obj/test/.d bin/test/.d
+${T_OBJECTS} ${T_DEPS} : ${OBJDIR}/test/.d ${DESTDIR}/test/.d
 
-bin/%: obj/%.o ${LIB_OBJS}
+${DESTDIR}/%: ${OBJDIR}/%.o ${LIB_OBJS}
 	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} $(LDFLAGS_$(*))
 
-bin/test/%: obj/test/%.o ${LIB_OBJS}
+${DESTDIR}/test/%: ${OBJDIR}/test/%.o ${LIB_OBJS}
 	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS}
 
 config.h:
@@ -99,26 +117,26 @@ config.h:
 	@mkdir -p $*
 	@touch $@
 
-obj/%.o : src/%.c config.h
+${OBJDIR}/%.o : src/%.c config.h
 	${CC} ${CPPFLAGS} $(CPPFLAGS_$(*)) ${CFLAGS} $(CFLAGS_$(*)) -c $< -o $@
 
-obj/test/%.o : test/%.c
+${OBJDIR}/test/%.o : test/%.c
 	${CC} ${CPPFLAGS} ${CFLAGS} -c $< -o $@
 
-obj/%.d : src/%.c config.h
-	${CC} ${CPPFLAGS} $(CPPFLAGS_$(*)) -MM $< | sed -e 's/^\(.*\)\.o[ :]*/obj\/\1.o obj\/\1.d : /' >$@
+${OBJDIR}/%.d : src/%.c config.h
+	${CC} ${CPPFLAGS} $(CPPFLAGS_$(*)) -MM $< | sed -e 's/^\(.*\)\.o[ :]*/${OBJDIR}\/\1.o ${OBJDIR}\/\1.d : /' >$@
 
-obj/test/%.d : test/%.c
-	${CC} ${CPPFLAGS} -MM $< | sed -e 's/^\(.*\)\.o[ :]*/obj\/test\/\1.o obj\/test\/\1.d : /' >$@
+${OBJDIR}/test/%.d : test/%.c
+	${CC} ${CPPFLAGS} -MM $< | sed -e 's/^\(.*\)\.o[ :]*/${OBJDIR}\/test\/\1.o ${OBJDIR}\/test\/\1.d : /' >$@
 
 install: all
 	install ${TARGETS} ${INSTBASE}/bin
 
 clean:
-	rm -rf obj/ out.tarix config.h
+	rm -rf ${OBJDIR}/ out.tarix config.h
 
 distclean: clean
-	rm -rf bin/
+	rm -rf ${DESTDIR}/
 
 debuginfo:
 	@echo TARGETS=${TARGETS}
