@@ -6,9 +6,11 @@ TARGETS:=${DESTDIR}/tarix ${DESTDIR}/fuse_tarix
 DISABLED_TARGETS:=
 MISSING_DEPS:=
 
-CPPFLAGS_FUSE:=$(strip $(shell pkg-config fuse --cflags --silence-errors))
+# silence-errors doesn't completely silence them
+# still get complaints about gnome-config if it is not available
+CPPFLAGS_FUSE:=$(strip $(shell pkg-config fuse --cflags --silence-errors 2>/dev/null))
 CPPFLAGS_GLIB:=$(strip $(shell pkg-config glib-2.0 --cflags --silence-errors))
-LDFLAGS_FUSE:=$(strip $(shell pkg-config fuse --libs --silence-errors))
+LDFLAGS_FUSE:=$(strip $(shell pkg-config fuse --libs --silence-errors 2>/dev/null))
 LDFLAGS_GLIB:=$(strip $(shell pkg-config glib-2.0 --libs --silence-errors))
 
 # disable fuse if it's not available
