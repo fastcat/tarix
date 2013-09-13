@@ -79,16 +79,6 @@ dep : ${DEPS}
 
 build_test: ${TARGETS} ${DESTDIR}/test/.d ${T_TARGETS}
 
-test-%: build_test test/%.sh
-	@printf "Test: %-30s ..." $*
-	@if test/$*.sh >${DESTDIR}/test/$*.log 2>&1 ; then \
-		echo " OK" ; \
-	else \
-		echo FAILED ; \
-		cat ${DESTDIR}/test/$*.log ; \
-		exit 1 ; \
-	fi
-
 test: build_test $(patsubst %,test-%,${TESTS})
 	@echo All tests appear to have passed
 
@@ -152,3 +142,18 @@ missing-%:
 	@echo "    is unavailable or could not be found with pkg-config"
 
 -include ${DEPS} ${T_DEPS}
+
+# tests cannot be run in parallel right now
+# this could be fixed for running the tests, but the console output would
+# still be muddled in that case, better to just run them serially
+.NOTPARALLEL:
+
+test-%: build_test test/%.sh
+	@printf "Test: %-30s ..." $*
+	@if test/$*.sh >${DESTDIR}/test/$*.log 2>&1 ; then \
+		echo " OK" ; \
+	else \
+		echo FAILED ; \
+		cat ${DESTDIR}/test/$*.log ; \
+		exit 1 ; \
+	fi
