@@ -1,6 +1,6 @@
 /*
  *  tarix - a GNU/POSIX tar indexer
- *  Copyright (C) 2006 Matthew "Cheetah" Gabeler-Lee
+ *  Copyright (C) 2013 Jean-Charles BERTIN
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,23 +17,21 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __TARIX_H__
-#define __TARIX_H__
+#ifndef __FILES_LIST_H__
+#define __FILES_LIST_H__
 
-#include "files_list.h"
+struct files_list_state
+{
+  size_t argc;
+  size_t argvlen;
+  const char **argv;
+  size_t *arglens;
+};
 
-#define stringify(x) #x
+int read_listfile(const char *file, char sep, char **bufptr, size_t *lenptr);
+int append_args_to_files_list(struct files_list_state *files_list,
+                              int argc, char *argv[], int firstarg);
+int append_listfile_to_files_list(struct files_list_state *files_list,
+                                  char sep, char *buf, size_t buflen);
 
-#define TARIX_FORMAT_VERSION 2
-#define TARIX_FORMAT_STRING "2"
-#define TARIX_VERSION "1.0.7"
-#define TARIX_DEF_OUTFILE "out.tarix"
-
-int create_index(const char *indexfile, const char *tarfile,
-  int pass_through, int zlib_level, int debug_messages);
-int extract_files(const char *indexfile, const char *tarfile,
-  const char *outfile, int use_mt, int zlib_level, int debug_messages,
-  int glob_flags, int exclude_mode, int exact_match,
-  const struct files_list_state *files_list);
-
-#endif /* __TARIX_H__ */
+#endif /* __FILES_LIST_H__ */

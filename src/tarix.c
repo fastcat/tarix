@@ -22,12 +22,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fnmatch.h>
-                     
+
 #include "config.h"
 
 #include "tarix.h"
 
-#define OPTSTR_BASE "deghHif:t:xz123456789"
+#define OPTSTR_BASE "adeghHinxzf:t:o:T:123456789"
 #ifdef FNM_LEADING_DIR
 #define OPTSTR_FNM "G"
 #else
@@ -43,8 +43,7 @@
 
 int show_help(int long_help) {
   fprintf(stdout, "%s",
-    /* TODO: remove -G from this if it's not supported */
-    "Usage: tarix [-gGhHizx] [-<n>] [-f index_file] [-t tarfile] [<filenames>]\n"
+    "Usage: tarix [-aeghHinxz" OPTSTR_FNM OPTSTR_MT "] [-<n>] [-f index_file] [-t tarfile] [-o outfile] [-T list_file] [<filenames>]\n"
     "  -h   Show short help\n"
     "  -H   Show long help\n"
     "  -i   Explicitly create index, don't pass tar data to stdout\n"
@@ -53,6 +52,10 @@ int show_help(int long_help) {
     "  -<n> Set zlib compression level (default 3, same meaning as gzip)\n"
     "  -f   Set index file to use (else $TARIX_OUTFILE or out.tarix)\n"
     "  -t   Set tar file to use (otherwise stdin)\n"
+    "  -o   (use with -x) Set tar file to write, otherwise stdout\n"
+    "  -T   (use with -x) Read the list of files to be extracted from list file\n"
+    "  -a   (use with -x) Filenames to extract must match exactly the files in index, not the start\n"
+    "  -n   (use with -T) Filenames from list file are separated by null characters, not by newlines\n"
 #ifdef HAVE_MTIO_H
     "  -m   Use mt (magnetic tape) IOCTLs for seeking instead of lseek\n"
 #endif
@@ -163,14 +166,19 @@ int main(int argc, char *argv[])
   int opt;
   char *indexfile = NULL;
   char *tarfile = NULL;
+  char *outfile = NULL;
+  char *listfile = NULL;
   int pass_through = 1;
   int use_mt = 0;
   int use_zlib = 0;
   int zlib_level = 3;
   int glob_flags = 0;
+  int exact_match = 0;
   int exclude_mode = 0;
   int debug_messages = 0;
+  char sep = '\n';
   char *tenv = getenv("TARIX");
+  struct files_list_state files_list = { 0, 0, NULL, NULL };
   
   /* parse opts, do right thing */
   while (1)
@@ -186,6 +194,9 @@ int main(int argc, char *argv[])
     {
       case 'd':
         debug_messages = 1;
+        break;
+      case 'a':
+        exact_match = 1;
         break;
       case 'e':
         exclude_mode = 1;
@@ -224,6 +235,21 @@ int main(int argc, char *argv[])
           free(tarfile);
         tarfile = (char*)malloc(strlen(optarg) + 1);
         strcpy(tarfile, optarg);
+        break;
+      case 'o':
+        if (outfile)
+          free(outfile);
+        outfile = (char*)malloc(strlen(optarg) + 1);
+        strcpy(outfile, optarg);
+        break;
+      case 'T':
+        if (listfile)
+          free(listfile);
+        listfile = (char*)malloc(strlen(optarg) + 1);
+        strcpy(listfile, optarg);
+        break;
+      case 'n':
+        sep = '\0';
         break;
       case 'x':
         action = EXTRACT_FILES;
@@ -270,8 +296,22 @@ int main(int argc, char *argv[])
     case LONG_HELP:
       return show_help(1);
     case EXTRACT_FILES:
-      return extract_files(indexfile, tarfile, use_mt, zlib_level,
-        debug_messages, glob_flags, exclude_mode, argc, argv, optind);
+      if (append_args_to_files_list(&files_list, argc, argv, optind))
+        return 1;
+
+      if (listfile)
+      {
+        char *buf;
+        size_t buflen;
+
+        if (read_listfile(listfile, sep, &buf, &buflen))
+          return 1;
+        if (append_listfile_to_files_list(&files_list, sep, buf, buflen))
+          return 1;
+      }
+      
+      return extract_files(indexfile, tarfile, outfile, use_mt, zlib_level,
+        debug_messages, glob_flags, exclude_mode, exact_match, &files_list);
     default:
       fprintf(stderr, "EEK! unknown action!\n");
       return 1;

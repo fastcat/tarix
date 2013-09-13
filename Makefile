@@ -24,7 +24,7 @@ endif
 MAIN_SRC=$(patsubst bin/%,src/%.c,${TARGETS})
 LIB_SRCS=src/create_index.c src/extract_files.c src/portability.c \
 	src/tstream.c src/crc32.c src/ts_util.c \
-	src/lineloop.c src/index_parser.c
+	src/lineloop.c src/index_parser.c src/files_list.c
 SOURCES=${MAIN_SRC} ${LIB_SRCS}
 OBJECTS=$(patsubst src/%.c,obj/%.o,${SOURCES})
 LIB_OBJS=$(patsubst src/%.c,obj/%.o,${LIB_SRCS})
@@ -40,17 +40,18 @@ T_TARGETS=$(patsubst test/%.c,bin/test/%,${T_SOURCES})
 
 CPPFLAGS=-I. -Isrc -D_GNU_SOURCE
 # some warnings only can be shown with -O1
-ifdef DEBUG
-CFLAGS_O=
+ifeq (${DEBUG},1)
+CFLAGS_O=-O0 -g
 else
-CFLAGS_O=-O1
+CFLAGS_O=-O3
 endif
-CFLAGS=-Wall -Werror -g -std=gnu99 $(CFLAGS_O)
+OPTCFLAGS?=
+CFLAGS=-Wall -Werror -std=gnu99 $(CFLAGS_O) $(OPTCFLAGS)
 CPPFLAGS_fuse_tarix:= ${CPPFLAGS_FUSE} ${CPPFLAGS_GLIB}
 LDFLAGS+=-lz
 LDFLAGS_fuse_tarix:=${LDFLAGS_FUSE} ${LDFLAGS_GLIB}
-CC=gcc
-INSTBASE=/usr/local
+CC?=gcc
+INSTBASE?=/usr/local
 
 .PHONY :: all dep build_test test debuginfo ${TESTS}
 
