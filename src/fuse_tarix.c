@@ -377,15 +377,18 @@ int index_lineloop(char *line, void *data) {
     }
     // only some record types get shown in the fuse mount
     switch (node->entry.recordtype) {
+      case DIRTYPE:
+      case GNUTYPE_DUMPDIR:
+        // need to flag dirs early so that linkage works correctly later
+        node->stbuf.st_mode |= S_IFDIR;
+        // fall-through
       case AREGTYPE:
       case REGTYPE:
       case LNKTYPE:
       case SYMTYPE:
       case CHRTYPE:
       case BLKTYPE:
-      case DIRTYPE:
       case FIFOTYPE:
-      case GNUTYPE_DUMPDIR:
         // filesystem objects we can represent: include it
         g_hash_table_insert(tarixfs.fnhash, node->entry.filename, node);
         break;

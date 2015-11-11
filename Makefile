@@ -45,7 +45,7 @@ T_TARGETS=
 T_OBJECTS=
 T_DEPS=
 else
-TESTS=$(patsubst test/%.sh,%,$(wildcard test/*.sh))
+TESTS=$(patsubst test/%.sh,%,$(sort $(wildcard test/*.sh)))
 _WANT_T_SOURCES=$(patsubst %,test/%.c,${TESTS})
 _HAVE_T_SOURCES=$(wildcard test/*.c)
 T_SOURCES=$(filter ${_HAVE_T_SOURCES},${_WANT_T_SOURCES})
