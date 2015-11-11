@@ -49,7 +49,7 @@ typedef struct _t_stream {
   /* boolean for using magnetic tape interface or not */
   int usemt;
 #endif
-  /* block size for magnetic tap operations */
+  /* block size for magnetic tape operations */
   int blksz;
   /* base offset of archive start */
   off64_t baseoffset;

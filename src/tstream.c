@@ -201,7 +201,10 @@ int ts_write(t_streamp tsp, void *buf, int len) {
   
   if (tsp->zsp == NULL) {
     /* non-zlib is just a simple write through */
-    return write(tsp->fd, buf, len);
+    int ret = write(tsp->fd, buf, len);
+    if (ret > 0)
+      tsp->raw_bytes += ret;
+    return ret;
   }
   
   /* dump into zlib buffers */
@@ -250,8 +253,12 @@ int ts_read(t_streamp tsp, void *buf, int len) {
   zsp = tsp->zsp;
   
   /* non-zlib: straight read */
-  if (zsp == NULL)
-    return read(tsp->fd, buf, len);
+  if (zsp == NULL) {
+    int ret = read(tsp->fd, buf, len);
+    if (ret > 0)
+      tsp->raw_bytes += ret;
+    return ret;
+  }
   
   /* zlib read */
   left = len;
@@ -303,6 +310,7 @@ off64_t ts_checkpoint(t_streamp tsp) {
   
   /* non-zlib: return basic offset */
   if (zsp == NULL)
+    // or: return do_tell?
     return tsp->raw_bytes;
   
   /* do a zlib checkpoint */

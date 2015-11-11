@@ -148,6 +148,7 @@ int create_index(const char *indexfile, const char *tarfile,
           DMSG("cp done at %lld\n", (long long)cp_offset);
         } else {
           cp_offset = filestart * TARBLKSZ;
+          DMSG("noop cp done at %lld\n", (long long)cp_offset);
         }
       }
       
