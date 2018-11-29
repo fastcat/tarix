@@ -17,7 +17,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __LINeLoop_H__
+#ifndef __LINELOOP_H
 #define __LINELOOP_H
 
 typedef int (*lineprocessor_t)(char *line, void *data);
