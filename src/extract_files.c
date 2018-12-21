@@ -40,7 +40,9 @@ struct extract_files_state
 {
   int gotheader;
   struct index_parser_state ipstate;
+#ifndef WITHOUT_DMSG
   int debug_messages;
+#endif
   /* curpos always tracks block offsets */
   off64_t curpos;
   int zlib_level;
@@ -60,8 +62,10 @@ int extract_files_lineloop_processor(char *line, void *data)
   const struct files_list_state* files_list = state->files_list;
   
   size_t i;
+#ifndef WITHOUT_DMSG
   /* for the DMSG macro */
   int debug_messages = state->debug_messages;
+#endif
   off64_t destoff;
   
   if (!state->gotheader)
@@ -218,7 +222,9 @@ int extract_files(const char *indexfile, const char *tarfile,
     return 1;
   }
   
+#ifndef WITHOUT_DMSG
   state.debug_messages = debug_messages;
+#endif
   state.zlib_level = zlib_level;
   state.glob_flags = glob_flags;
   state.exclude_mode = exclude_mode;

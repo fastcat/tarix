@@ -20,9 +20,13 @@
 #ifndef __DEBUG_H__
 #define __DEBUG_H__
 
-#define DMSG(f, ...) { \
+#ifdef WITHOUT_DMSG
+#define DMSG(f, ...) do {} while(0)
+#else
+#define DMSG(f, ...) do { \
   if (debug_messages) \
     fprintf(stderr, "DEBUG: " f, ##__VA_ARGS__); \
-}
+} while (0)
+#endif
 
 #endif /* __DEBUG_H__ */

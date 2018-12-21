@@ -2,3 +2,4 @@ bin
 obj
 .svn
 config.h
+Makefile.xcode

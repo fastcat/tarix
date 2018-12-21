@@ -27,7 +27,7 @@
 
 #include "tarix.h"
 
-#define OPTSTR_BASE "adeghHinxzf:t:o:T:123456789"
+#define OPTSTR_BASE "aeghHinxzf:t:o:T:123456789"
 #ifdef FNM_LEADING_DIR
 #define OPTSTR_FNM "G"
 #else
@@ -38,8 +38,13 @@
 #else
 #define OPTSTR_MT ""
 #endif
+#ifdef WITHOUT_DMSG
+#define OPTSTR_DMSG ""
+#else
+#define OPTSTR_DMSG "d"
+#endif
 
-#define OPTSTR (OPTSTR_BASE OPTSTR_FNM OPTSTR_MT)
+#define OPTSTR (OPTSTR_BASE OPTSTR_FNM OPTSTR_MT OPTSTR_DMSG)
 
 int show_help(int long_help) {
   fprintf(stdout, "%s",
@@ -195,9 +200,11 @@ int main(int argc, char *argv[])
       break; /* no more options */
     switch (opt)
     {
+#ifndef WITHOUT_DMSG
       case 'd':
         debug_messages = 1;
         break;
+#endif
       case 'a':
         exact_match = 1;
         break;
